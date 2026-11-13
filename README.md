@@ -5,7 +5,8 @@ beamlines in their real order from the reception (CoSAXS, ForMAX, BALDER, …), 
 the 300 m linac, the office, Fotongatan and the tram. Two beamlines can be visited and used: **CoSAXS** and **DanMAX**.
 
 ## Play
-Double-click **`index.html`** (works straight from disk, no server needed).
+Double-click **`index.html`** (works straight from disk, single-player), or run `node server/server.mjs` and open
+`http://localhost:8080` to play together.
 WASD move · Shift sprint · mouse look · F scooter · E interact · M map · H help · T chat (online version).
 
 ## Visitable beamlines
@@ -27,7 +28,9 @@ button 1 at the far end → button 2 by the door → leave → LOCK outside with
 * **Table tennis** in the open hall space between the future beamline and DanMAX.
 * **Money (kr)** – good data are worth an hour of beamtime (≈ kr 6 260, ALBA’s published rate), goals and analyses pay
   more; accidents cost what they would in reality (burnt detector module ≈ kr 350 000, estimate).
-* **Multiplayer** (online version only): pick a name at the start, see and chat with other players.
+* **Multiplayer**: pick a name at the start, see and chat with other players (T). Works in the shared claude.ai
+  version and on your own server – `node server/server.mjs`, then open `http://localhost:8080/?room=yourclass`.
+  See **[HOSTING.md](HOSTING.md)** for Render, Docker and GitHub Pages.
 
 ## Rebuilding after code changes
 Sources are in `js/`; `index.html` loads the single bundle `game.bundle.js`. After editing, run `./build.sh`

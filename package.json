@@ -1,0 +1,12 @@
+{
+  "name": "maxiv-explorer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MAX IV Explorer – open-world game at the MAX IV synchrotron, with a multiplayer relay server",
+  "type": "module",
+  "scripts": {
+    "start": "node server/server.mjs",
+    "build": "./build.sh"
+  },
+  "engines": { "node": ">=18" }
+}

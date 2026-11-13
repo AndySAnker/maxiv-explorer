@@ -1,6 +1,8 @@
-// Multiplayer: when the game runs as a shared claude.ai artifact, everyone who has it open is in one "room".
-// Each player shares a small presence object (name, colour, position, scooter, last chat line); others are drawn
-// as avatars with name tags. Opened from disk there is no room and the game stays single-player.
+// Multiplayer. Each player shares a small presence object (name, colour, position, scooter, last chat line); others
+// are drawn as avatars with name tags. Two back-ends with the same interface (presence(patch) / onPeers(cb)):
+//   · inside claude.ai: the artifact's live "room";
+//   · on your own web server: the WebSocket relay in server/server.mjs (same origin /ws, or <meta name="maxiv-relay">).
+// Players with the same ?room=name in the URL meet each other (default "lobby"). Opened from disk: single-player.
 import * as THREE from 'three';
 import { G } from './state.js';
 import { makeHuman, animHuman, vehModel } from './actors.js';
@@ -37,9 +39,10 @@ export async function initNet(name) {
   NET.myColor = ['#d8452f', '#2f7fd0', '#2a9d5c', '#8a4fd8', '#e0a030', '#d14f8f', '#1aa6a0'][Math.floor(Math.random() * 7)];
   try { NET.myColor = localStorage.getItem('beamtime.color') || NET.myColor; localStorage.setItem('beamtime.color', NET.myColor); } catch { /* storage unavailable */ }
   updateOnline();
-  if (!window.claude || typeof window.claude.use !== 'function') return; // opened from disk: single-player
-  let room = null; try { room = await window.claude.use('room'); } catch { room = null; }
-  if (!room) return;
+  let room = null;
+  if (window.claude && typeof window.claude.use === 'function') { try { room = await window.claude.use('room'); } catch { room = null; } NET.kind = 'claude'; }
+  else { const url = relayURL(); if (url) { room = await relayRoom(url); NET.kind = 'relay'; } }
+  if (!room) return; // single-player
   NET.room = room;
   room.onPeers((ch) => {
     for (const p of ch.joined) if (!p.sameTab && p.kind === 'viewer') logLine(`${clean(p.presence?.name, 20) || 'Someone'} joined`, '#7dffb0');
@@ -47,7 +50,55 @@ export async function initNet(name) {
     for (const p of [...ch.joined, ...ch.updated]) if (!p.sameTab && p.kind === 'viewer') upsert(p);
     NET.online = ch.peers.filter((p) => p.kind === 'viewer').length; updateOnline();
   }, () => { NET.room = null; updateOnline(); });
-  logLine('Connected – press T to chat', '#7dffb0');
+  logLine(`Connected${NET.roomName ? ` to room “${NET.roomName}”` : ''} – press T to chat`, '#7dffb0');
+}
+
+// ---------------- WebSocket relay back-end (server/server.mjs) ----------------
+function relayURL() {
+  const qs = new URLSearchParams(location.search); const room = (qs.get('room') || 'lobby').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32) || 'lobby';
+  let base = document.querySelector('meta[name="maxiv-relay"]')?.content?.trim() || '';
+  if (!base) { if (!/^https?:$/.test(location.protocol)) return null; base = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'; }
+  if (!/^wss?:\/\//.test(base)) return null;
+  NET.roomName = room; return base + (base.includes('?') ? '&' : '?') + 'room=' + encodeURIComponent(room);
+}
+// resolves to a room object once connected, or null if the first connection fails (then the game stays single-player)
+function relayRoom(url) {
+  return new Promise((resolve) => {
+    let ws = null, me = null, cb = null, ready = false, tries = 0; const peers = new Map(); const full = {};
+    const view = (id) => ({ peer: id, presence: peers.get(id), sameTab: false, kind: 'viewer' });
+    const all = () => [{ peer: me || 'me', presence: full, sameTab: true, kind: 'viewer' }, ...[...peers.keys()].map(view)];
+    const emit = (ch) => cb && cb({ joined: [], left: [], updated: [], ...ch, peers: all() });
+    const room = {
+      presence(patch) { Object.assign(full, patch); if (ws && ws.readyState === 1 && me) ws.send(JSON.stringify({ t: 'p', p: patch })); return Promise.resolve(); },
+      onPeers(fn) { cb = fn; emit({ joined: [...peers.keys()].map(view) }); },
+    };
+    const connect = () => {
+      try { ws = new WebSocket(url); } catch { if (!ready) resolve(null); return; }
+      const t0 = setTimeout(() => { if (!ready) { try { ws.close(); } catch { /* ignore */ } } }, 6000);
+      ws.onmessage = (e) => {
+        let m; try { m = JSON.parse(e.data); } catch { return; }
+        if (m.t === 'welcome') {
+          clearTimeout(t0); me = m.id; tries = 0;
+          const gone = [...peers.keys()]; peers.clear(); if (gone.length) emit({ left: gone.map((id) => ({ peer: id })) });
+          for (const p of m.peers) peers.set(p.peer, p.presence || {});
+          emit({ joined: m.peers.map((p) => view(p.peer)) });
+          const { say, sayT, ...keep } = full; if (Object.keys(keep).length) ws.send(JSON.stringify({ t: 'p', p: keep }));
+          if (!ready) { ready = true; resolve(room); } else { logLine('Reconnected', '#7dffb0'); NET.room = room; updateOnline(); }
+        } else if (m.t === 'upd') {
+          const isNew = !peers.has(m.peer); peers.set(m.peer, { ...(peers.get(m.peer) || {}), ...m.presence });
+          emit(isNew ? { joined: [view(m.peer)] } : { updated: [view(m.peer)] });
+        } else if (m.t === 'leave') { if (peers.delete(m.peer)) emit({ left: [{ peer: m.peer }] }); }
+      };
+      ws.onclose = () => {
+        clearTimeout(t0); me = null;
+        if (!ready) { resolve(null); return; } // no server here: single-player
+        tries++; NET.online = 1; updateOnline(); if (tries === 1) logLine('Connection lost – reconnecting…', '#ffb24d');
+        setTimeout(connect, Math.min(30000, 1000 * 2 ** Math.min(tries, 5)));
+      };
+      ws.onerror = () => { /* onclose follows */ };
+    };
+    connect();
+  });
 }
 function upsert(p) {
   const pr = p.presence || {}; if (typeof pr.x !== 'number' || typeof pr.z !== 'number') return;
@@ -67,7 +118,7 @@ function upsert(p) {
 }
 function updateOnline() {
   const el = document.getElementById('online'); if (!el) return;
-  el.textContent = NET.room ? `👥 ${NET.online} online` : '';
+  el.textContent = NET.room ? `👥 ${NET.online} online${NET.kind === 'relay' && NET.roomName && NET.roomName !== 'lobby' ? ` · ${NET.roomName}` : ''}` : '';
 }
 
 // called every frame: share my state, move the other players smoothly
