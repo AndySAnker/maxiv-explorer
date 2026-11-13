@@ -53,7 +53,7 @@ const CFG = {
     // DECTRIS PILATUS4 X CdTe 4M: 4 × 8 modules (76.95 × 38.25 mm), gaps 7 px between columns and 20 px between rows
     DET: { W: 311.0, H: 327.0, nx: 311, ny: 327, cx: 0.5, cy: 0.5, bs: 1.6,
       gaps: { vx: [1, 2, 3].map((k) => (k * 76.95 + (k - 0.5) * 1.05) / 311.0), vw: 0.0019, hy: [1, 2, 3, 4, 5, 6, 7].map((k) => (k * 38.25 + (k - 0.5) * 3.0) / 327.0), hw: 0.0047 } },
-    PIX: 0.150, DPX: { nx: 2073, ny: 2180 },
+    PIX: 0.150, DPX: { nx: 2073, ny: 2180 }, offY: 140.0, empty: 'empty capillary', noLog: true, // mm the beam spot moves down on the detector in 'bottom' mode
     det: { name: 'PILATUS4 X CdTe 4M', info: 'DECTRIS PILATUS4 X CdTe 4M: 2073 × 2180 pixels of 150 µm on 311 × 327 mm, in 32 modules (4 × 8) with thin gaps between them. A 1 mm CdTe sensor stops hard X-rays (8–100 keV) that would pass through silicon, and every pixel counts single photons, so there is no readout noise – up to 1000 frames/s. A big area close to the sample reaches high Q, which is what a PDF needs. MAX IV lists a PILATUS3 X 2M CdTe (1475 × 1679 pixels of 172 µm) as DanMAX’s area detector; PILATUS4 CdTe detectors have been used at DanMAX for fast high-energy powder diffraction.' }, TRUE: { dL: 0.0123, bx: -0.9, by: 1.3 },
     L: [0.12, 1.0, 0.01, 0.25], E: [15, 35, 0.5, 35], Lref: 0.25, FLUX: 2.0e3, RATE_MAX: 5.0e6, DIRECT: 5.0e10, motor: 0.3,
     REL: { au: 1.0, tio2: 1.0, ni: 1.0, ceo2: 1.0, lab6: 1.0 }, logI: false, linBins: true, minRings: 3,
@@ -85,7 +85,7 @@ function storeDatasets() { try { localStorage.setItem(DS_KEY, JSON.stringify(DAT
 
 // ---------------- per-beamline state; `use(st)` switches the engine to one beamline ----------------
 function makeState(cfg) {
-  const st = { cfg, bl: null, sample: null, L: cfg.L[3], Ltarget: cfg.L[3], E: cfg.E[3], exposure: 1, att: 1, bsIn: true,
+  const st = { cfg, bl: null, sample: null, L: cfg.L[3], Ltarget: cfg.L[3], E: cfg.E[3], exposure: 1, att: 1, bsIn: true, oy: 0,
     last: null, red: null, tasks: {}, busy: false, bg: {}, damaged: false, fit: null, loaded: null, datasets: DATASETS };
   try { const v = JSON.parse(localStorage.getItem(cfg.calKey) || '[]'); st.calibs = Array.isArray(v) ? v : []; } catch { st.calibs = []; }
   return st;
@@ -114,19 +114,21 @@ const storeCalibs = () => { try { localStorage.setItem(C.calKey, JSON.stringify(
 function addDataset(r, prof, clean, bgUsed) {
   const n = (DATASETS.reduce((m, d) => Math.max(m, d.n), 0) || 0) + 1;
   const ok = prof.filter((p) => (C.logI ? p.I > 0 : Number.isFinite(p.I)));
-  DATASETS.push({ n, bl: C.key, id: r.id, formula: r.id ? byId(r.id).formula : 'empty', L: r.L, E: r.E, T: r.T, clean, bgUsed,
+  DATASETS.push({ n, bl: C.key, id: r.id, formula: r.id ? byId(r.id).formula : emptyName(), L: r.L, E: r.E, T: r.T, oy: r.oy || 0, clean, bgUsed,
     q: ok.map((p) => +p.q.toPrecision(5)), I: ok.map((p) => +p.I.toPrecision(5)), err: ok.map((p) => +p.err.toPrecision(3)) });
   if (DATASETS.length > 30) DATASETS.splice(0, DATASETS.length - 30);
   storeDatasets(); return n;
 }
-const sameSet = (c, L, E) => Math.abs(c.L - L) < 1e-3 && Math.abs(c.E - E) < 1e-3;
-const savedFor = (L, E) => CX.calibs.find((c) => sameSet(c, L, E));
+const sameSet = (c, L, E, oy = 0) => Math.abs(c.L - L) < 1e-3 && Math.abs(c.E - E) < 1e-3 && Math.abs((c.oy || 0) - (oy || 0)) < 1e-6;
+const savedFor = (L, E, oy) => CX.calibs.find((c) => sameSet(c, L, E, oy));
+const posTag = (oy) => (oy ? ' · beam low' : '');
+const emptyName = () => C.empty || 'empty';
 function qRange(L, E, bx = 0, by = 0) {
   const xs = [-DET.W * DET.cx - bx, DET.W * (1 - DET.cx) - bx], ys = [-DET.H * DET.cy - by, DET.H * (1 - DET.cy) - by];
   let rmax = 0; for (const x of xs) for (const y of ys) rmax = Math.max(rmax, Math.hypot(x, y));
   return [qOf(DET.bs, L, E), qOf(rmax, L, E)];
 }
-const trueRange = () => qRange(CX.L + TRUE.dL, CX.E, TRUE.bx, TRUE.by);
+const trueRange = () => qRange(CX.L + TRUE.dL, CX.E, TRUE.bx, TRUE.by + CX.oy);
 const geoFactor = (Lm) => (C.Lref / Lm) ** 2;
 
 // ---------------- 3D hardware ----------------
@@ -206,10 +208,11 @@ function buildTables(st, bl, { d, ds, ry }) {
   const rk = P(d.e0 + 0.45, 1.3);
   S.box(mat('#d9dcdf'), rk.x, 0.45, rk.z, 1.4, 0.9, 0.5, ry); addBox(rk.x, rk.z, 1.4, 0.55, bl.n.x, bl.n.z, 0, 1.0);
   SAMP.forEach((smp, k) => { st.rackVials[smp.id] = vial(smp, P(d.e0 + 0.45, 0.85 + k * 0.45), 1.0, 0.18); });
+  if (cfg.empty) st.rackVials._empty = vial({ color: '#dff1fb' }, P(d.e0 + 0.45, 0.85 + SAMP.length * 0.45), 1.0, 0.18);
   sign('SAMPLES', '#5b2d9e', P(d.e0 + 0.3, 1.3), ry);
   const st1 = P(d.e0 + 1.25, 1.3);
   G.interact.push({ x: st1.x, z: st1.z, r: 1.1, label: 'Samples table', act: () => { use(st); choose(st.calibs.length ? 'Samples' : 'Samples <small class="d">Tip: calibrate first with a calibrant</small>',
-    [...SAMP.map((x) => ({ label: `${x.formula}`, sub: x.shape, act: () => mount(x.id) })), { label: 'Empty holder', sub: 'for background', act: () => mount(null) }]); } });
+    [...SAMP.map((x) => ({ label: `${x.formula}`, sub: x.shape, act: () => mount(x.id) })), { label: cfg.empty ? 'Empty capillary' : 'Empty holder', sub: 'measure it as background', act: () => mount(null) }]); } });
   st.sampStand = st1;
   const ct = P(ds + 2.6, 1.9);
   S.box(mat('#d9dcdf'), ct.x, 0.45, ct.z, 0.5, 0.9, 1.2, ry); addBox(ct.x, ct.z, 1.2, 0.55, t.x, t.z, 0, 1.0);
@@ -271,12 +274,13 @@ function choose(title, opts) {
 }
 function mount(id) {
   CX.sample = id; const s = id ? byId(id) : null;
-  CX.vial.visible = !!s; if (s) CX.vial.material = mat(s.color, { roughness: 0.3 });
-  for (const [vid, v] of Object.entries(CX.rackVials)) v.visible = vid !== id;
+  CX.vial.visible = !!s || !!C.empty; if (s) CX.vial.material = mat(s.color, { roughness: 0.3 }); else if (C.empty) CX.vial.material = mat('#dff1fb', { roughness: 0.1 });
+  const on = id ?? (C.empty ? '_empty' : null);
+  for (const [vid, v] of Object.entries(CX.rackVials)) v.visible = vid !== on;
   G.sfx?.('pickup');
-  G.ui.toast(`${s ? `<b>${s.formula}</b> mounted` : 'Holder empty'} – now search: button 1 → button 2 → LOCK outside`, 5);
+  G.ui.toast(`${s ? `<b>${s.formula}</b> mounted` : C.empty ? '<b>Empty capillary</b> mounted' : 'Holder empty'} – now search: button 1 → button 2 → LOCK outside`, 5);
 }
-function setDet(L) { const p = CX.bl.P(CX.ds + L, 0); CX.det.position.set(p.x, CX.beamY, p.z); }
+function setDet(L) { const p = CX.bl.P(CX.ds + L, 0); CX.det.position.set(p.x, CX.beamY + CX.oy / 1000, p.z); } // raised detector = beam near its bottom edge
 
 // ---------------- control UI: 1 Measure · 2 Calibrate · 3 Reduce · 4 Analyse ----------------
 const $ = (id) => document.getElementById(id);
@@ -345,6 +349,8 @@ export function initCoSAXSUI() {
         <div class="cxrow cxinl"><div><label>Exposure</label><select id="cxT"><option value="0.1">0.1 s</option><option value="1" selected>1 s</option><option value="10">10 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="300">5 min</option><option value="1800">30 min</option><option value="3600">1 h</option></select></div>
           <div><label>Attenuator</label><select id="cxA"><option value="1">none</option><option value="0.1">10 %</option><option value="0.01">1 %</option><option value="0.001">0.1 %</option></select></div></div>
         <div class="cxrow cxinl"><label style="margin:0"><input type="checkbox" id="cxBS" checked> Beamstop</label></div>
+        <div class="cxrow" id="cxPosRow"><label>Beam on detector ${info('For a PDF you want high Q. Raise the detector so the direct beam lands just above its bottom edge: on the upper side the detector then reaches about twice the scattering angle, so Q max goes up a lot at the same distance. Rings become arcs, so each Q is averaged over fewer pixels. The beam centre moves, so calibrate again in this position.')}</label>
+          <select id="cxPos"><option value="0">Centre – full rings</option><option value="1">Near bottom edge – higher Q</option></select></div>
         <button id="cxGo" class="cxbtn">Expose</button><div id="cxBar"><i></i></div>
         <div id="cxCal" class="cxbox"></div>
         <button id="cxFix" class="cxbtn alt" style="display:none">Repair detector</button>
@@ -383,7 +389,7 @@ export function initCoSAXSUI() {
         <h4>3 · Integrate ${info('Average all unmasked pixels at the same Q (azimuthal integration) to turn the 2D image into a 1D pattern. Tick Subtract background to remove a matching empty-holder measurement.')}</h4>
         <div class="cxinl"><div><span class="cxlab">Bins</span><select id="rgN"><option>100</option><option>200</option><option>400</option><option>1000</option></select></div>
           <div><span class="cxlab">Unit</span><select id="rgU"><option value="qA">q (Å⁻¹)</option><option value="qnm">q (nm⁻¹)</option><option value="tth">2θ (°)</option></select></div></div>
-        <div class="cxchk" style="margin-top:6px"><label><input type="checkbox" id="rgSub"> Subtract background</label><label><input type="checkbox" id="rgMod" checked> Show model</label><label><input type="checkbox" id="rgLog"> Log axes</label></div>
+        <div class="cxchk" style="margin-top:6px"><label><input type="checkbox" id="rgSub"> Subtract background</label><label><input type="checkbox" id="rgMod" checked> Show model</label><label id="rgLogL"><input type="checkbox" id="rgLog"> Log axes</label></div>
         <button id="rgGo" class="cxbtn">Integrate</button>
         <div id="rgMsg"></div>
       </div>
@@ -400,6 +406,7 @@ export function initCoSAXSUI() {
   $('cxE').addEventListener('input', (e) => { CX.E = +e.target.value; refresh(); });
   $('cxT').addEventListener('change', (e) => { CX.exposure = +e.target.value; });
   $('cxA').addEventListener('change', (e) => { CX.att = +e.target.value; refresh(); });
+  $('cxPos').addEventListener('change', (e) => { CX.oy = +e.target.value ? C.offY : 0; setDet(CX.L); refresh(); });
   $('cxBS').addEventListener('change', (e) => { CX.bsIn = e.target.checked; if (!CX.bsIn) G.ui.toast('⚠ Beamstop out – use 0.1 % attenuator'); refresh(); });
   $('cxGo').addEventListener('click', expose);
   $('cbFit').addEventListener('click', fitRings);
@@ -433,9 +440,10 @@ export function openExperiment(key) {
     const L = $('cxL'); L.min = C.L[0]; L.max = C.L[1]; L.step = C.L[2]; L.value = CX.Ltarget;
     const E = $('cxE'); E.min = C.E[0]; E.max = C.E[1]; E.step = C.E[2]; E.value = CX.E;
     $('cxT').value = String(CX.exposure); $('cxA').value = String(CX.att); $('cxBS').checked = CX.bsIn;
+    $('cxPosRow').style.display = C.offY ? '' : 'none'; $('cxPos').value = CX.oy ? '1' : '0';
     for (const id of ['cxDet', 'cbDet', 'rgDet']) { $(id).width = DET.nx; $(id).height = DET.ny; }
     $('rgN').value = String(C.bins); $('rgU').value = C.unit; $('rgLog').checked = C.log; $('rgMsg').innerHTML = '';
-    const pdf = key === 'danmax'; $('cxTabPBtn').style.display = pdf ? '' : 'none'; $('cxTabABtn').textContent = pdf ? '5 Analyse' : '4 Analyse';
+    const pdf = key === 'danmax'; $('cxTabPBtn').style.display = pdf ? '' : 'none'; $('rgLogL').style.display = C.noLog ? 'none' : ''; $('cxTabABtn').textContent = pdf ? '5 Analyse' : '4 Analyse';
     $('cxDetName').innerHTML = C.det ? C.det.name + info(C.det.info) : '';
     fillNominal(); showTab('M');
   }
@@ -462,8 +470,8 @@ function refresh() {
   const [qa, qb] = qRange(CX.L, CX.E);
   const hut = $('cxHutch'); const searched = !!CX.bl?.searched;
   hut.className = 'cxbox ' + (searched ? 'ok' : 'bad'); hut.innerHTML = searched ? '🔒 Hutch searched and locked' : 'Hutch not searched – button 1 → button 2 → LOCK outside';
-  const cal = $('cxCal'); const sv = savedFor(CX.L, CX.E);
-  cal.className = 'cxbox ' + (sv ? 'ok' : 'bad'); cal.innerHTML = sv ? `✓ Calibration saved: ${sv.name}` : 'No calibration saved for this distance and energy';
+  const cal = $('cxCal'); const sv = savedFor(CX.L, CX.E, CX.oy);
+  cal.className = 'cxbox ' + (sv ? 'ok' : 'bad'); cal.innerHTML = sv ? `✓ Calibration saved: ${sv.name}` : 'No calibration saved for this distance, energy and beam position';
   $('cxInfo').innerHTML = `Q ${qa.toFixed(3)} – ${qb.toFixed(2)} Å⁻¹` + (C.key === 'danmax' ? ` · λ ${(12.398 / CX.E).toFixed(3)} Å` : '') + (CX.damaged ? '<br><span class="bad">Burnt detector module – mask bad pixels, or replace it</span>' : '') + (G.ring.beamOn ? '' : '<br><span class="bad">No beam</span>');
   $('cxGo').disabled = moving || CX.busy || !searched;
   $('cxGo').textContent = searched ? 'Expose' : 'Expose (search the hutch first)';
@@ -486,7 +494,7 @@ function drawPip(renderer) {
   };
   const sp = CX.bl.P(CX.ds, 0); const s = CX.sample ? byId(CX.sample) : null;
   lab(new THREE.Vector3(sp.x, CX.beamY + 0.08, sp.z), s ? `Sample: ${s.formula}` : 'Sample: empty', s ? s.color : '#9fb3c8');
-  lab(CX.det.position.clone().add(new THREE.Vector3(0, 0.3, 0)), `Detector ${CX.L.toFixed(2)} m`, '#c9a8ff');
+  lab(CX.det.position.clone().add(new THREE.Vector3(0, 0.3, 0)), `Detector ${CX.L.toFixed(2)} m${CX.oy ? ' · raised' : ''}`, '#c9a8ff');
   g.font = 'bold 12px monospace'; g.fillStyle = CX.bl.shutter ? '#ff5050' : CX.bl.searched ? '#ffa31a' : '#7dffb0';
   g.fillText(CX.bl.shutter ? '● BEAM ON' : CX.bl.searched ? '● SEARCHED – READY' : '● OPEN – NOT SEARCHED', 8, 16);
 }
@@ -514,7 +522,7 @@ function simulate() {
   const counts = new Float64Array(nx * ny), mask = new Uint8Array(nx * ny);
   let sat = 0; const damage = !CX.bsIn && C.DIRECT * att > 1e9; // unattenuated direct beam burns the module it hits
   for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) {
-    const j = iy * nx + ix; const [x, y] = pixXY(ix, iy); const xt = x - TRUE.bx, yt = y - TRUE.by; const r = Math.hypot(xt, yt);
+    const j = iy * nx + ix; const [x, y] = pixXY(ix, iy); const xt = x - TRUE.bx, yt = y - TRUE.by - CX.oy; const r = Math.hypot(xt, yt);
     if (gapMask(x, y)) { mask[j] = 2; counts[j] = -1; continue; }
     if (CX.damaged && r < 5) { mask[j] = 4; counts[j] = 0; continue; }
     const tth = Math.atan(r / (Lt * 1000)); const q = k * Math.sin(tth / 2);
@@ -526,7 +534,7 @@ function simulate() {
     counts[j] = poisson(rate * T);
   }
   const [qa, qb] = trueRange();
-  return { counts, mask, sat, damage, id, L: CX.L, E, T, att, qa, qb };
+  return { counts, mask, sat, damage, id, L: CX.L, E, T, att, qa, qb, oy: CX.oy };
 }
 
 // ---------------- raw image display ----------------
@@ -544,7 +552,7 @@ function drawRaw(cv, res, userMask = null) {
   }
   g.putImageData(img, 0, 0);
   g.fillStyle = '#fff'; g.font = '11px monospace';
-  g.fillText(`${res.id ? byId(res.id).formula : 'empty'} · ${res.T >= 60 ? res.T / 60 + ' min' : res.T + ' s'} · ${res.L.toFixed(2)} m · ${res.E.toFixed(1)} keV`, 6, DET.ny - 6);
+  g.fillText(`${res.id ? byId(res.id).formula : emptyName()} · ${res.T >= 60 ? res.T / 60 + ' min' : res.T + ' s'} · ${res.L.toFixed(2)} m · ${res.E.toFixed(1)} keV`, 6, DET.ny - 6);
   if (res.sat && !userMask) { g.fillStyle = '#00ffff'; g.fillText('saturated – use attenuator', 6, 14); }
 }
 function blank(cv) { if (cv.width !== DET.nx) { cv.width = DET.nx; cv.height = DET.ny; } const g = cv.getContext('2d'); g.fillStyle = '#0a0d12'; g.fillRect(0, 0, DET.nx, DET.ny); g.fillStyle = '#556'; g.font = '13px Arial'; g.fillText('No exposure yet', DET.nx / 2 - 50, DET.ny / 2); }
@@ -554,33 +562,33 @@ const ringsOf = (s, k) => C.peaks(s).filter((p) => p.q < k);
 // what to change so that enough rings land on the detector (between the beamstop and the detector edge)
 function ringAdvice(s, need, r) {
   CX.calHintFor = r;
-  const pk = C.peaks(s); const fits = (L, E) => { const [qa, qb] = qRange(L + TRUE.dL, E, TRUE.bx, TRUE.by); return pk.filter((p) => p.q > qa * 1.3 && p.q < qb * 0.97).length >= need; };
+  const pk = C.peaks(s); const fits = (L, E) => { const [qa, qb] = qRange(L + TRUE.dL, E, TRUE.bx, TRUE.by + (r.oy || 0)); return pk.filter((p) => p.q > qa * 1.3 && p.q < qb * 0.97).length >= need; };
   const tip = [];
   for (let L = r.L; L >= C.L[0] - 1e-9; L -= C.L[2]) if (fits(L, r.E)) { tip.push(`distance ≤ ${L.toFixed(2)} m at ${r.E.toFixed(1)} keV`); break; }
   for (let L = r.L; L <= C.L[1] + 1e-9; L += C.L[2]) if (fits(L, r.E)) { if (!tip.length) tip.push(`distance ≥ ${L.toFixed(2)} m at ${r.E.toFixed(1)} keV`); break; }
   for (let E = r.E; E <= C.E[1] + 1e-9; E += C.E[2]) if (fits(r.L, E)) { tip.push(`energy ≥ ${E.toFixed(1)} keV at ${r.L.toFixed(2)} m`); break; }
-  const shown = pk.filter((p) => { const [qa, qb] = qRange(r.L + TRUE.dL, r.E, TRUE.bx, TRUE.by); return p.q > qa * 1.3 && p.q < qb * 0.97; }).length;
+  const shown = pk.filter((p) => { const [qa, qb] = qRange(r.L + TRUE.dL, r.E, TRUE.bx, TRUE.by + (r.oy || 0)); return p.q > qa * 1.3 && p.q < qb * 0.97; }).length;
   return `${shown ? `Only ${shown} ${s.formula} ring` : `No ${s.formula} ring`} on the detector – need ${need}. Try ${tip.length ? tip.join(' or ') : 'another distance or energy'}.`;
 }
 function fitRings() {
   const r = CX.last; const s = r && r.id && byId(r.id); if (!s || !s.std) return;
-  const [qa, qb] = qRange(r.L + TRUE.dL, r.E, TRUE.bx, TRUE.by);
+  const [qa, qb] = qRange(r.L + TRUE.dL, r.E, TRUE.bx, TRUE.by + (r.oy || 0));
   const seen = C.peaks(s).filter((p) => p.q > qa * 1.3 && p.q < qb * 0.97);
   const need = typeof C.minRings === 'function' ? C.minRings(s) : C.minRings;
   if (seen.length < need) { CX.fit = null; CX.calHint = ringAdvice(s, need, r); refreshCal(); return G.ui.toast(CX.calHint, 6); }
   if (r.sat > 2000) { CX.fit = null; refreshCal(); return G.ui.toast('Saturated – use an attenuator'); }
   const n = () => (Math.random() - 0.5);
-  const bx = TRUE.bx + n() * 0.03, by = TRUE.by + n() * 0.03;
+  const bx = TRUE.bx + n() * 0.03, by = TRUE.by + (r.oy || 0) + n() * 0.03;
   CX.calHint = null;
-  CX.fit = { L: r.L, E: r.E, std: s.id, rings: seen.length, Lfit: r.L + TRUE.dL + n() * 0.0008 * r.L, bx, by,
+  CX.fit = { L: r.L, E: r.E, oy: r.oy || 0, std: s.id, rings: seen.length, Lfit: r.L + TRUE.dL + n() * 0.0008 * r.L, bx, by,
     px: (DET.W * DET.cx + bx) / PIX, py: (DET.H * DET.cy + by) / PIX, lam: 12.398 / r.E * (1 + n() * 2e-5) };
-  $('cbName').value = `${s.formula} ${r.L.toFixed(2)} m ${r.E.toFixed(1)} keV`;
+  $('cbName').value = `${s.formula} ${r.L.toFixed(2)} m ${r.E.toFixed(1)} keV${posTag(r.oy)}`;
   G.sfx?.('success'); refreshCal();
 }
 function saveFit() {
   const f = CX.fit; if (!f) return;
-  const name = $('cbName').value.trim() || `${byId(f.std).formula} ${f.L.toFixed(2)} m ${f.E.toFixed(1)} keV`;
-  CX.calibs = CX.calibs.filter((c) => c.name !== name && !sameSet(c, f.L, f.E));
+  const name = $('cbName').value.trim() || `${byId(f.std).formula} ${f.L.toFixed(2)} m ${f.E.toFixed(1)} keV${posTag(f.oy)}`;
+  CX.calibs = CX.calibs.filter((c) => c.name !== name && !sameSet(c, f.L, f.E, f.oy));
   CX.calibs.push({ name, ...f }); storeCalibs();
   G.ui.toast(`💾 Saved: ${name}`, 3);
   const task = C.calTask(f); if (task) awardTask(C.key, task);
@@ -607,7 +615,7 @@ function refreshCal() {
 // ---------------- reduction: mask + PONI geometry + azimuthal integration ----------------
 function fillNominal() {
   const r = CX.last; const L = r ? r.L : CX.L, E = r ? r.E : CX.E;
-  $('rgD').value = (L * 1000).toFixed(1); $('rgX').value = (DET.W * DET.cx / PIX).toFixed(1); $('rgY').value = (DET.H * DET.cy / PIX).toFixed(1);
+  $('rgD').value = (L * 1000).toFixed(1); $('rgX').value = (DET.W * DET.cx / PIX).toFixed(1); $('rgY').value = ((DET.H * DET.cy + ((r ? r.oy : CX.oy) || 0)) / PIX).toFixed(1);
   $('rgW').value = (12.398 / E).toFixed(5); $('rgP').value = String(PIX * 1000);
   CX.loaded = null; refreshReduce(); drawReduceDet();
 }
@@ -617,12 +625,12 @@ function readForm() {
 }
 function refreshReduce() {
   const r = CX.last;
-  $('rgSrc').innerHTML = r ? `Image: <b>${r.id ? byId(r.id).formula : 'empty'}</b> · ${r.L.toFixed(2)} m · ${r.E.toFixed(1)} keV` + (r.sat ? ' · <span class="bad">saturated</span>' : '') : 'No image yet';
+  $('rgSrc').innerHTML = r ? `Image: <b>${r.id ? byId(r.id).formula : emptyName()}</b> · ${r.L.toFixed(2)} m · ${r.E.toFixed(1)} keV${posTag(r.oy)}` + (r.sat ? ' · <span class="bad">saturated</span>' : '') : 'No image yet';
   const sel = $('rgCalSel'); const cur = CX.loaded ? CX.calibs.indexOf(CX.loaded) : -1;
-  sel.innerHTML = `<option value="">Load saved calibration…</option>` + CX.calibs.map((c, i) => `<option value="${i}" ${i === cur ? 'selected' : ''}>${c.name}${r && sameSet(c, r.L, r.E) ? '  ✓' : ''}</option>`).join('');
+  sel.innerHTML = `<option value="">Load saved calibration…</option>` + CX.calibs.map((c, i) => `<option value="${i}" ${i === cur ? 'selected' : ''}>${c.name}${r && sameSet(c, r.L, r.E, r.oy) ? '  ✓' : ''}</option>`).join('');
   const el = $('rgCal'); const c = CX.loaded;
   if (!c) { el.className = 'cxbox bad'; el.innerHTML = CX.calibs.length ? 'Load a calibration ↑ (✓ = matches image)' : 'No saved calibration – make one in 2 Calibrate'; }
-  else if (r && sameSet(c, r.L, r.E)) { el.className = 'cxbox ok'; el.innerHTML = `✓ ${c.name}`; }
+  else if (r && sameSet(c, r.L, r.E, r.oy)) { el.className = 'cxbox ok'; el.innerHTML = `✓ ${c.name}`; }
   else { el.className = 'cxbox bad'; el.innerHTML = `⚠ ${c.name} – image is ${r ? r.L.toFixed(2) + ' m ' + r.E.toFixed(1) + ' keV' : '–'}`; }
 }
 function userMaskOf(r, f) {
@@ -659,7 +667,7 @@ function integrate() {
   const sum = new Float64Array(nb), ws = new Float64Array(nb), n = new Uint32Array(nb);
   for (let j = 0; j < qs.length; j++) { if (!qs[j]) continue; const v = lin ? qs[j] : Math.log(qs[j]); const b = Math.min(nb - 1, Math.floor((v - la) / (lb - la) * nb)); sum[b] += r.counts[j]; ws[b] += wn[j]; n[b]++; }
   let prof = []; for (let b = 0; b < nb; b++) if (n[b] > 3) { const c0 = la + (b + 0.5) / nb * (lb - la); prof.push({ b, q: lin ? c0 : Math.exp(c0), I: sum[b] / ws[b], err: Math.sqrt(Math.max(Math.abs(sum[b]), 1)) / ws[b] }); }
-  const Lt = (r.L + TRUE.dL) * 1000, cxT = (DET.W * DET.cx + TRUE.bx) / PIX, cyT = (DET.H * DET.cy + TRUE.by) / PIX, lamT = 12.398 / r.E;
+  const Lt = (r.L + TRUE.dL) * 1000, cxT = (DET.W * DET.cx + TRUE.bx) / PIX, cyT = (DET.H * DET.cy + TRUE.by + (r.oy || 0)) / PIX, lamT = 12.398 / r.E;
   const geomOK = Math.abs(f.Lmm - Lt) / Lt < 0.005 && Math.hypot(f.cx - cxT, f.cy - cyT) * PIX < 0.4 && Math.abs(f.lam - lamT) / lamT < 0.003 && Math.abs(f.pix - PIX) < 0.0005;
   const maskOK = f.bs && f.gap && (f.hot || (!r.sat && !CX.damaged));
   const key = JSON.stringify([f.Lmm, f.cx, f.cy, f.lam, f.pix, f.bs, f.gap, f.hot, nb, r.L, r.E, r.att, r.T]);
@@ -668,7 +676,7 @@ function integrate() {
   else if ($('rgSub').checked) {
     const bg = CX.bg[key];
     if (bg) { const m = new Map(bg.map((p) => [p.b, p])); prof = prof.filter((p) => m.has(p.b)).map((p) => { const o = m.get(p.b); return { ...p, I: p.I - o.I, err: Math.hypot(p.err, o.err) }; }); bgUsed = true; }
-    else G.ui.toast('No matching background – reduce the empty holder with the same settings');
+    else G.ui.toast(`No matching background – reduce the ${C.empty || 'empty holder'} with the same settings`);
   }
   CX.red = { id: r.id, prof, geomOK, maskOK, bgUsed, sat: r.sat, qa: r.qa, qb: r.qb, f, raw: r };
   CX.red.n = addDataset(r, prof, geomOK && maskOK && !r.sat, bgUsed);
@@ -688,7 +696,7 @@ function integrate() {
   G.sfx?.('beep'); drawReducePlot(); refresh();
 }
 function drawReducePlot() {
-  const cv = $('rgPlot'); const red = CX.red; const unit = $('rgU').value; const log = $('rgLog').checked;
+  const cv = $('rgPlot'); const red = CX.red; const unit = $('rgU').value; const log = !C.noLog && $('rgLog').checked;
   const conv = (q) => (unit === 'qnm' ? q * 10 : unit === 'tth' ? 2 * Math.asin(Math.min(1, q / (4 * Math.PI / (red?.f.lam || 1)))) * 180 / Math.PI : q);
   const xl = unit === 'qnm' ? 'Q (nm⁻¹)' : unit === 'tth' ? '2θ (°)' : 'Q (Å⁻¹)';
   const series = [];

@@ -24,8 +24,8 @@ function dataset() {
   if (e.bl === 'danmax') return makeD(e);
   return { name: dsLabel(e), q: e.q, I: e.I, err: e.err, mq: ANALYSIS.cand_q, models: (e.id && ANALYSIS.cand[e.id]) || [], key: 'r' + e.n, lit: false, entry: e };
 }
-const dsName = (e) => (e.id ? (e.formula || byIdIn(e.bl || 'cosaxs', e.id)?.formula || e.id) : 'empty holder');
-const dsLabel = (e) => `#${e.n} ${e.bl === 'danmax' ? 'DanMAX' : 'CoSAXS'} · ${dsName(e)} · ${e.L.toFixed(2)} m · ${e.E.toFixed(1)} keV${e.bgUsed ? ' · bkg sub.' : ''}${e.clean ? '' : ' ⚠'}`;
+const dsName = (e) => (e.id ? (e.formula || byIdIn(e.bl || 'cosaxs', e.id)?.formula || e.id) : e.bl === 'danmax' ? 'empty capillary' : 'empty holder');
+const dsLabel = (e) => `#${e.n} ${e.bl === 'danmax' ? 'DanMAX' : 'CoSAXS'} · ${dsName(e)} · ${e.L.toFixed(2)} m · ${e.E.toFixed(1)} keV${e.oy ? ' · beam low' : ''}${e.bgUsed ? ' · bkg sub.' : ''}${e.clean ? '' : ' ⚠'}`;
 function pickDefault() {
   const key = BL(); const sets = mine(); const newest = sets[sets.length - 1];
   if (A.blKey !== key) { A.blKey = key; A.ds = A.dsBy[key] ?? null; }
@@ -307,7 +307,7 @@ function sineFT(q, F, qmin, qmax, lorch, rmax, rstep = 0.02, r0 = 0.5) {
   return { r, G };
 }
 // background: an empty-capillary dataset measured at the same distance and energy
-function bgEntry(d) { if (!PD.bg) return null; const b = DSETS.find((x) => 'r' + x.n === PD.bg); return b && Math.abs(b.L - d.entry.L) < 1e-6 && Math.abs(b.E - d.entry.E) < 1e-6 ? b : null; }
+function bgEntry(d) { if (!PD.bg) return null; const b = DSETS.find((x) => 'r' + x.n === PD.bg); return b && Math.abs(b.L - d.entry.L) < 1e-6 && Math.abs(b.E - d.entry.E) < 1e-6 && (b.oy || 0) === (d.entry.oy || 0) ? b : null; }
 function corrI(d) { const b = bgEntry(d); if (!b) return d.I; return d.I.map((v, i) => { const bv = interp(b.q, b.I, d.q[i]); return Number.isFinite(bv) ? v - PD.bgs * bv : v; }); }
 // X-ray atomic form factors f0(Q), Cromer–Mann coefficients (International Tables Vol. C)
 const CM = {
@@ -372,7 +372,7 @@ function renderPdf(el) {
   el.innerHTML = `<div class="cxinl"><span class="cxlab" style="margin:0">Data</span><select id="pdDs" style="flex:1"></select></div>
     <div class="angrid"><div>
       <h4>1 · Background ${info('The empty capillary scatters too. Measure it at the same distance and energy, reduce it, and subtract it here.')}</h4>
-      <select id="pdBg" style="width:100%"><option value="">None</option>${empties.slice().reverse().map((e) => `<option value="r${e.n}">Empty capillary #${e.n} · ${e.L.toFixed(2)} m · ${e.E.toFixed(1)} keV</option>`).join('')}</select>
+      <select id="pdBg" style="width:100%"><option value="">None</option>${empties.slice().reverse().map((e) => `<option value="r${e.n}">Empty capillary #${e.n} · ${e.L.toFixed(2)} m · ${e.E.toFixed(1)} keV${e.oy ? ' · beam low' : ''}</option>`).join('')}</select>
       <h4>2 · I(Q) → S(Q) ${info('S(Q) = 1 + [I(Q)/s − ⟨f²⟩] / ⟨f⟩². The atomic form factors f(Q) of the composition you type set ⟨f²⟩ and ⟨f⟩². The scale s is chosen so that I/s follows ⟨f²⟩ at high Q, where S(Q) → 1.')}</h4>
       <div class="cxinl"><span class="cxlab" style="margin:0;min-width:92px">Composition</span><input type="text" id="pdComp" style="flex:1" value="${d ? compOf(d) : ''}"></div>
       <h4>3 · S(Q) → F(Q) ${info('F(Q) = Q[S(Q) − 1], used between Q min and Q max.')}</h4>

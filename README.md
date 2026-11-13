@@ -9,13 +9,13 @@ Double-click **`index.html`** (works straight from disk, no server needed).
 WASD move · Shift sprint · mouse look · F scooter · E interact · M map · H help · T chat (online version).
 
 ## Visitable beamlines
-In the hutch, take a calibrant (green table) or a sample (purple table), then **search the hutch**:
+In the hutch, take a calibrant (green table) or a sample (purple table; DanMAX also has an empty capillary for the background), then **search the hutch**:
 button 1 at the far end → button 2 by the door → leave → LOCK outside within 30 s. In the control cabin
 (live hutch camera on screen):
 
 | Tab | CoSAXS (SAXS/WAXS, EIGER2 4M) | DanMAX (powder diffraction, PILATUS4 X CdTe 4M) |
 |---|---|---|
-| 1 Measure | distance, energy, exposure, attenuator, beamstop | same, up to 35 keV |
+| 1 Measure | distance, energy, exposure, attenuator, beamstop | same, up to 35 keV; beam at the centre or near the bottom edge (higher Q for PDF) |
 | 2 Calibrate | fit AgBeH / LaB₆ rings, save the geometry | fit CeO₂ / LaB₆ rings, save the geometry |
 | 3 Reduce | mask + geometry → azimuthal integration, background | same |
 | 4 | Analyse: inspect, sphere fit, Debye structure ranking | **PDF**: your I(Q) → S(Q) → F(Q) → G(r) (composition, empty capillary, Compton/smooth-background removal, Q range, Lorch) |
