@@ -1,0 +1,116 @@
+<title>MAX IV Explorer</title>
+<style>
+  :root { color-scheme: dark; --bg: #0b0f14; --fg: #ffffff; --acc: #ffcc33; --bad: #ff5050; --ok: #7dffb0; --panel: rgba(10, 14, 20, 0.62); --font: "Trebuchet MS", "Segoe UI", Arial, sans-serif; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); font-family: var(--font); color: var(--fg); }
+  #game { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
+  #hud { position: fixed; inset: 0; pointer-events: none; text-shadow: 0 2px 3px #000, 0 0 2px #000; }
+  .bad { color: var(--bad); } .dim { opacity: .65; }
+  #status { position: absolute; top: 14px; left: 14px; background: var(--panel); padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.55; min-width: 230px; }
+  #status b { color: #9fd7ff; }
+  #topright { position: absolute; top: 12px; right: 16px; text-align: right; }
+  #money { font: bold 34px var(--font); color: #9dffa9; letter-spacing: 1px; }
+  #money.debt { color: #ff7a7a; }
+  #stars { font-size: 26px; letter-spacing: 3px; margin-top: 2px; }
+  #stars span { color: rgba(255,255,255,.18); } #stars span.on { color: #ffd000; }
+  #stars.flash span.on { animation: fl .5s steps(2) infinite; }
+  @keyframes fl { 50% { color: #ff3b3b; } }
+  #health { width: 170px; height: 9px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.4); margin: 6px 0 0 auto; border-radius: 5px; overflow: hidden; }
+  #health i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #3ad16b, #9dff6a); }
+  #photons { font-size: 13px; color: #ffe27a; margin-top: 6px; }
+  #mission { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: var(--panel); padding: 10px 18px; border-radius: 10px; max-width: 560px; text-align: center; display: none; }
+  #mtitle { color: var(--acc); font-weight: bold; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; }
+  #mtext { font-size: 16px; margin-top: 3px; } #mtimer { font: bold 26px monospace; margin-top: 2px; } #mtimer.bad { color: var(--bad); }
+  #minimap { position: absolute; left: 18px; bottom: 18px; width: 210px; height: 210px; border-radius: 50%; border: 3px solid rgba(255,255,255,.85); box-shadow: 0 0 0 3px rgba(0,0,0,.4); background: #3d5a2f; }
+  #zone { position: absolute; left: 245px; bottom: 26px; font: bold 22px var(--font); color: #fff; opacity: 0; transition: opacity .6s; }
+  #speed { position: absolute; right: 22px; bottom: 22px; font: bold 30px var(--font); }
+  #prompt { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); background: var(--panel); padding: 9px 18px; border-radius: 8px; font-size: 18px; opacity: 0; transition: opacity .15s; white-space: nowrap; }
+  #prompt b { background: #fff; color: #111; border-radius: 4px; padding: 0 7px; text-shadow: none; }
+  #holdbar { position: absolute; left: 50%; bottom: 108px; width: 220px; height: 6px; transform: translateX(-50%); background: rgba(0,0,0,.5); border-radius: 3px; opacity: 0; }
+  #holdbar i { display: block; height: 100%; width: 0; background: var(--acc); border-radius: 3px; }
+  #toast { position: absolute; top: 150px; left: 14px; max-width: 380px; background: var(--panel); padding: 10px 14px; border-radius: 8px; font-size: 15px; line-height: 1.4; opacity: 0; transition: opacity .4s; }
+  #bigmsg { position: absolute; top: 34%; left: 50%; transform: translate(-50%, -50%); text-align: center; opacity: 0; transition: opacity .6s; max-width: 760px; }
+  #bigmsg div { font: 900 46px var(--font); letter-spacing: 2px; text-shadow: 0 4px 0 #000, 0 0 12px #000; }
+  #bigmsg small { display: block; font-size: 19px; margin-top: 8px; color: #f2f2f2; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; background: rgba(255,255,255,.6); border-radius: 50%; }
+  .overlay { position: fixed; inset: 0; background: rgba(5, 8, 12, .86); display: none; align-items: center; justify-content: center; z-index: 5; }
+  .overlay.show { display: flex; }
+  .card { background: #131a23; border: 1px solid #2a3646; border-radius: 14px; padding: 22px 28px; max-width: min(1000px, 92vw); max-height: 88vh; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  .card h2 { margin: 0 0 4px; } .card h3 { margin: 0 0 10px; font-weight: normal; color: #9fb3c8; }
+  .card a { color: #8fd0ff; }
+  #pimg { max-width: 100%; max-height: 62vh; display: block; margin: 0 auto 12px; border-radius: 8px; }
+  .cap { font-size: 17px; } .cred { font-size: 13px; color: #9fb3c8; }
+  .close { float: right; cursor: pointer; background: #2a3646; border: 0; color: #fff; font-size: 16px; border-radius: 6px; padding: 4px 12px; }
+  table.keys td { padding: 3px 14px 3px 0; } table.keys td:first-child { color: var(--acc); font-weight: bold; white-space: nowrap; }
+  #credits { font-size: 12.5px; color: #b9c7d6; padding-left: 18px; }
+  #title { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; text-align: center;
+           background: linear-gradient(180deg, rgba(5,10,20,.35), rgba(5,10,20,.9)), url('assets/photos/aerial_2016.jpg') center/cover; transition: opacity .8s; }
+  #title.gone { opacity: 0; pointer-events: none; }
+  #title h1 { font: 900 clamp(34px, 7vw, 96px) var(--font); margin: 0; letter-spacing: 4px; text-wrap: balance; color: #fff; text-shadow: 0 6px 0 #b8860b, 0 10px 30px #000; }
+  #title h1 span { color: var(--acc); }
+  #title p { font-size: 20px; margin: 10px 0 26px; text-shadow: 0 2px 6px #000; }
+  #startbtn { font: bold 22px var(--font); padding: 14px 40px; border-radius: 40px; border: 0; background: var(--acc); color: #111; cursor: pointer; box-shadow: 0 6px 0 #a87c00; }
+  #startbtn:disabled { opacity: .5; cursor: wait; }
+  #title .small { font-size: 13px; opacity: .8; margin-top: 18px; }
+  #nameIn { font: 18px var(--font); padding: 10px 16px; border-radius: 30px; border: 2px solid rgba(255,255,255,.4); background: rgba(10,14,20,.6); color: #fff; text-align: center; width: 240px; }
+  #online { position: absolute; top: 118px; right: 16px; font-size: 14px; color: #7dffb0; }
+  #chatlog { position: absolute; left: 18px; bottom: 240px; width: 360px; font-size: 14px; line-height: 1.45; }
+  #chatlog div { background: rgba(10,14,20,.55); padding: 2px 8px; border-radius: 6px; margin-top: 3px; width: fit-content; max-width: 100%; transition: opacity 2s; }
+  #chatlog div.old { opacity: .25; }
+  #chatin { position: absolute; left: 18px; bottom: 206px; width: 360px; display: none; pointer-events: auto; font: 15px var(--font); padding: 8px 12px; border-radius: 8px; border: 1px solid #8a4fd8; background: rgba(10,14,20,.85); color: #fff; }
+  #loadwrap { width: min(420px, 80vw); height: 10px; margin: 22px auto 0; background: rgba(255,255,255,.15); border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+  #loadbar { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ffcc33, #fff3b0); border-radius: 6px; transition: width .25s; }
+  #startbtn:disabled + #loadwrap { }
+  #title.ready #loadwrap { opacity: .0; transition: opacity .6s; }
+</style>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div id="status"><div id="ring3"></div><div id="ring1"></div><div id="topup" class="dim"></div><div id="dose"></div></div>
+  <div id="topright"><div id="money">kr 0</div><div id="stars"></div><div id="health"><i></i></div><div id="photons"></div></div>
+  <div id="mission"><div id="mtitle"></div><div id="mtext"></div><div id="mtimer"></div></div>
+  <canvas id="minimap" width="210" height="210"></canvas>
+  <div id="zone"></div><div id="speed"></div>
+  <div id="prompt"></div><div id="holdbar"><i></i></div>
+  <div id="toast"></div><div id="bigmsg"></div>
+  <div id="online"></div><div id="chatlog"></div><input id="chatin" maxlength="200" placeholder="Say something… (Enter to send, Esc to cancel)">
+</div>
+
+<div id="photoov" class="overlay"><div class="card"><button class="close">✕ close (E)</button><img id="pimg" alt=""><div id="ptext"></div></div></div>
+<div id="mapov" class="overlay"><div class="card" style="padding:12px"><button class="close">✕ close (M)</button><canvas id="bigmap"></canvas></div></div>
+<div id="helpov" class="overlay"><div class="card"><button class="close">✕ close (H)</button>
+  <h2>MAX IV Explorer</h2><h3>An open-world game set at the MAX IV synchrotron in Lund, Sweden</h3>
+  <table class="keys">
+    <tr><td>W A S D / arrows</td><td>Move · drive</td></tr>
+    <tr><td>Mouse</td><td>Look around (click the game to capture the mouse)</td></tr>
+    <tr><td>Shift</td><td>Sprint</td></tr><tr><td>Space</td><td>Jump · handbrake</td></tr>
+    <tr><td>F</td><td>Step on / off a kick scooter</td></tr>
+    <tr><td>E</td><td>Interact – view photos, open shutters, mission actions (hold for some)</td></tr>
+    <tr><td>T</td><td>Chat with other players (shared online version)</td></tr><tr><td>M</td><td>Map</td></tr><tr><td>C / wheel</td><td>Camera distance</td></tr><tr><td>H / Esc</td><td>This help</td></tr>
+  </table>
+  <p><b>How it works.</b> Get your badge at the reception, then take missions (blue markers) or courier jobs from the job board in the lobby.
+     Explore the 3 GeV ring (528 m) and the 1.5 GeV ring, walk over the bridges into the storage-ring tunnel area, visit the beamlines and the 300 m linac.
+     Breaking interlocks, driving cars in the hall or running people over raises the <span style="color:#ffd000">☢ safety alert</span> – the safety officers will escort you to training.
+     Find all the hidden golden photons ✦.</p>
+  <p><b>Visitable beamlines.</b> All beamlines are in the hall; only <b>CoSAXS</b> (SAXS/WAXS) and <b>DanMAX</b> (powder diffraction and PDF) are open (★ on the map).
+     In the hutch, take a calibrant (green table) or a sample (purple table). Then <b>search the hutch</b>: button 1 at the far end → button 2 by the door → leave → LOCK outside within 30 s. Opening the hutch cancels the search.
+     In the cabin: 1 Measure (live hutch camera) · 2 Calibrate and save · 3 Reduce 2D → 1D (mask + geometry) · then
+     CoSAXS: 4 Analyse (sphere fit, Debye structures) · DanMAX: 4 PDF (I(Q) → S(Q) → F(Q) → G(r), with background and Q range) and 5 Analyse in Q-space (fit Bragg peaks → lattice parameter and Scherrer size) and r-space (crystal-sphere fit → lattice parameter and particle size).</p>
+  <p><b>Around the hall.</b> On your left as you come in, past CoSAXS: the exhibition “From MAX I to MAX IV”. Table tennis is in the open space between the future beamline and DanMAX.</p>
+  <p><b>Money.</b> Good science pays: each clean dataset of a sample is worth an hour of beamtime (≈ kr 6 260, ALBA’s published rate of €544/h), and goals, analyses, missions and courier jobs pay kr 3 000–50 000.
+     Accidents cost what they would in reality: a detector module burnt by the direct beam ≈ kr 350 000 (estimate; vendors don’t publish prices – until then mask the bad pixels), a forced interlock ≈ kr 100 000 of lost beamtime, an emergency-room visit kr 400 (Region Skåne). Bills can put you in debt (red).</p>
+  <p class="dim">Scattering patterns are calculated with <a href="https://github.com/FrederikLizakJohansen/DebyeCalculator" target="_blank" rel="noopener">DebyeCalculator</a> 1.1.1 (grid pair sum, PR #44). The analysis tab’s literature example (Bi-oxido cluster growth, <i>Angew. Chem. Int. Ed.</i> 2021, e202103641) was measured elsewhere, not at CoSAXS; it comes from the course app <a href="https://github.com/AndySAnker/2026_Applications-of-X-ray-and-Neutron-Scattering-in-Biology-Chemistry-and-Physics/tree/main/saxs_analysis" target="_blank" rel="noopener">saxs_analysis</a>.</p>
+  <p class="dim">Layout is a playful, simplified version of the real site – beamline positions are approximate.</p>
+  <p class="dim" style="font-size:12px"><b>Software &amp; data.</b> 3D engine <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> (MIT licence). Scattering patterns precomputed with <a href="https://github.com/FrederikLizakJohansen/DebyeCalculator" target="_blank" rel="noopener">DebyeCalculator</a> (Apache 2.0) and ASE. X-ray form factors: Cromer–Mann coefficients, International Tables for Crystallography Vol. C. Detector specifications: DECTRIS data sheets. Repair costs are estimates; the beamtime rate is ALBA’s published rate.</p>
+  <h3 style="margin-top:14px">Photo credits (Wikimedia Commons)</h3><ul id="credits"></ul>
+  <p class="dim" style="font-size:12px">Fan-made game, not affiliated with MAX IV Laboratory or Lund University. Built with three.js.</p>
+</div></div>
+
+<div id="title"><div>
+  <h1>MAX IV <span>EXPLORER</span></h1>
+  <p>Run and scoot around the <b>MAX IV synchrotron</b> in Lund, Sweden.<br>Get your badge, sneak into beamlines, do the tunnel search, dodge the safety officers.</p>
+  <div style="margin-bottom:14px"><input id="nameIn" maxlength="20" placeholder="Your name" autocomplete="nickname"></div>
+  <button id="startbtn" disabled>Start</button>
+  <div id="loadwrap"><i id="loadbar"></i></div>
+  <div class="small" id="loadtxt">Building the synchrotron…</div>
+  <div class="small">WASD move · Mouse look · F vehicles · E interact · M map · H help</div>
+</div></div>
+<script src="game.bundle.js"></script>
