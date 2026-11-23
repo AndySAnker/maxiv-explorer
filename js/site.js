@@ -8,6 +8,7 @@ import { R3, R1, LOOP, ROADS, PATHS, OFFICE, LINAC, PARKING, PLAZA, TRAM, ESS, B
 import { B, HB, M, BOX, CYL, SPH, revolveGeom, wallSeg, wallLine } from './build.js';
 import { buildPingPong } from './pingpong.js';
 import { buildExhibit } from './exhibit.js';
+import { buildFoodTruck } from './foodtruck.js';
 import { W, MAT, initMaterials, buildRing, ringBeamline, buildBeamline, registerSources, photoBoard, makeSlideDoor } from './world.js';
 
 export { W };
@@ -21,7 +22,7 @@ export async function buildSite(scene, tick = async () => {}) {
   await step(0.36, 'Building the 3 GeV ring (528 m)…', () => { registerSources(); buildRing(R3, '3', true); });
   await step(0.44, 'Building the 1.5 GeV ring…', () => buildRing(R1, '1', false));
   await step(0.50, 'Installing beamlines…', () => { for (const b of BEAMLINES3) ringBeamline(R3, b, '3'); for (const b of BEAMLINES1) ringBeamline(R1, b, '1'); r3Extras(); buildExhibit(); });
-  await step(0.58, 'Opening the office and the café…', () => { office(); buildPingPong(); });
+  await step(0.58, 'Opening the office and the café…', () => { office(); buildPingPong(); buildFoodTruck(); });
   await step(0.62, 'Laying 300 m of linac…', () => { linac(); tram(); });
   await step(0.68, 'Planting trees in Skåne…', () => scenery());
   await step(0.76, 'Hanging up photos…', () => { zones(); boards(); photons(); nav(); });

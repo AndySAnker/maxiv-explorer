@@ -3,6 +3,7 @@ import { G } from './state.js';
 import { fmt } from './economy.js';
 import { R3, R1, LOOP, ROADS, PATHS, OFFICE, LINAC, PARKING, PLAZA, TRAM, ESS, BIKE_RING_R, PHOTOS, BEAMLINES3 } from './data.js';
 import { TAU, clamp } from './util.js';
+import { FOODTRUCK } from './foodtruck.js';
 
 const $ = (id) => document.getElementById(id);
 const MAP = { x0: -330, z0: -270, x1: 330, z1: 250, s: 2 };
@@ -107,7 +108,7 @@ function labels(g, k, ox, oy, sc) {
   g.save(); g.font = `bold ${Math.round(11 * k)}px Trebuchet MS, Arial`; g.textAlign = 'center'; g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.75)'; g.fillStyle = '#fff';
   const L = (t, x, z) => { const px = ox + (x - MAP.x0) * sc, py = oy + (z - MAP.z0) * sc; g.strokeText(t, px, py); g.fillText(t, px, py); };
   for (const b of G.beamlines) { const p = b.samplePos || b.center; if (p) L(b.name + (b.info.visit ? ' ★ open' : ''), p.x, p.z); }
-  L('Courtyard', 0, -10); L('Office & Reception', 152, 0); L('Parking', 160, 70); L('Linac 300 m', -60, -184); L('1.5 GeV ring', R1.cx, R1.cz + 3);
+  L('Courtyard', 0, -10); L('Office & Reception', 152, 0); L('Food truck', FOODTRUCK.x, FOODTRUCK.z + 9); L('Parking', 160, 70); L('Linac 300 m', -60, -184); L('1.5 GeV ring', R1.cx, R1.cz + 3);
   L('Tram: MAX IV', TRAM.stopX, TRAM.z + 10); L('Fotongatan', -60, 160); L('→ ESS', 310, 140); L('3 GeV ring', 0, 20);
   g.restore();
 }
@@ -131,7 +132,8 @@ function drawMinimap(camYaw) {
   };
   for (const o of G.remoteBlips || []) blip(o.x, o.z, '#7dffb0', 4);
   for (const o of G.officers) blip(o.pos.x, o.pos.z, (G.time * 4 | 0) % 2 ? '#ff3b3b' : '#3b7bff', 3.5);
-  for (const m of G.missionBlips || []) blip(m.x, m.z, m.color, m.r || 5, true, m.shape);
+  blip(FOODTRUCK.x, FOODTRUCK.z, '#ffb347', 4, false, 'sq');
+  for (const m of [...(G.missionBlips || []), ...Object.values(G.guideBlips || {})]) blip(m.x, m.z, m.color, m.r || 5, true, m.shape);
   g.restore();
   // player arrow (always points along the player's facing relative to camera)
   const yaw = p.vehicle ? p.vehicle.heading : p.yaw;
@@ -149,7 +151,7 @@ function drawBigMap() {
   g.drawImage(mapImg, ox, oy, (MAP.x1 - MAP.x0) * sc, (MAP.z1 - MAP.z0) * sc);
   labels(g, 1.1, ox, oy, sc);
   const T = (x, z) => [ox + (x - MAP.x0) * sc, oy + (z - MAP.z0) * sc];
-  for (const m of G.missionBlips || []) { const [x, y] = T(m.x, m.z); g.fillStyle = m.color; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 7, 0, TAU); g.fill(); g.stroke(); if (m.label) { g.fillStyle = '#fff'; g.font = 'bold 12px Arial'; g.fillText(m.label, x + 10, y + 4); } }
+  for (const m of [...(G.missionBlips || []), ...Object.values(G.guideBlips || {})]) { const [x, y] = T(m.x, m.z); g.fillStyle = m.color; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 7, 0, TAU); g.fill(); g.stroke(); if (m.label) { g.fillStyle = '#fff'; g.font = 'bold 12px Arial'; g.fillText(m.label, x + 10, y + 4); } }
   const p = G.player; const pp = p.vehicle ? p.vehicle.pos : p.pos; const yaw = p.vehicle ? p.vehicle.heading : p.yaw;
   const [px, py] = T(pp.x, pp.z); g.save(); g.translate(px, py); g.rotate(-yaw + Math.PI); g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, -11); g.lineTo(8, 8); g.lineTo(0, 4); g.lineTo(-8, 8); g.closePath(); g.fill(); g.stroke(); g.restore();
 }

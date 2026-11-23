@@ -5,7 +5,7 @@ function niceTicks(a, b, n = 6) {
   const span = b - a; if (!(span > 0)) return [a];
   const step0 = span / n; const p = 10 ** Math.floor(Math.log10(step0)); const m = step0 / p;
   const step = (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; const out = [];
-  for (let v = Math.ceil(a / step) * step; v <= b + 1e-9 * span; v += step) out.push(+v.toPrecision(12));
+  for (let v = Math.ceil(a / step) * step; v <= b + 1e-9 * span; v += step) out.push(Math.abs(v) < step * 1e-6 ? 0 : +v.toPrecision(12));
   return out;
 }
 export function plotXY(cv, o) {
