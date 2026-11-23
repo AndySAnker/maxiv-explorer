@@ -6,7 +6,8 @@
 // (?room=name in the page URL, default "lobby") see each other's name, colour, position, scooter and chat.
 // Nothing is written to disk; the server only keeps who is online right now.
 //
-// Environment: PORT (8080) · MAX_PER_ROOM (40) · MAX_TOTAL (400) · ALLOWED_ORIGINS (comma list; empty = any)
+// Environment: PORT (8080) · MAX_PER_ROOM (40) · MAX_TOTAL (400) · MAX_PER_IP (8) · ALLOWED_ORIGINS (comma list; empty = any)
+//              TRUST_PROXY=1 when behind a reverse proxy (Render, Fly, nginx), so the client IP comes from X-Forwarded-For
 import http from 'node:http';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
@@ -19,6 +20,10 @@ const PORT = +(process.env.PORT || 8080);
 const MAX_PER_ROOM = +(process.env.MAX_PER_ROOM || 40);
 const MAX_TOTAL = +(process.env.MAX_TOTAL || 400);
 const ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
+const MAX_PER_IP = +(process.env.MAX_PER_IP || 8);
+const TRUST_PROXY = /^(1|true|yes)$/i.test(process.env.TRUST_PROXY || '');
+const perIP = new Map(); // address -> open connections
+const ipOf = (req) => (TRUST_PROXY && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket.remoteAddress || '?';
 
 // ---------------- static files (only what the game needs) ----------------
 const FILES = { '/': 'index.html', '/index.html': 'index.html', '/game.bundle.js': 'game.bundle.js' };
@@ -56,21 +61,23 @@ server.on('upgrade', (req, sock) => {
   if (url.pathname !== '/ws' || !key || (req.headers.upgrade || '').toLowerCase() !== 'websocket') return bad(400, 'Bad Request');
   if (ORIGINS.length && !ORIGINS.includes(req.headers.origin)) return bad(403, 'Forbidden');
   if (clients.size >= MAX_TOTAL) return bad(503, 'Server Full');
+  const ip = ipOf(req); if ((perIP.get(ip) || 0) >= MAX_PER_IP) return bad(429, 'Too Many Connections');
   const roomName = cleanText(url.searchParams.get('room') || 'lobby', 32).toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'lobby';
   const room = rooms.get(roomName) || new Map();
   if (room.size >= MAX_PER_ROOM) return bad(503, 'Room Full');
   const accept = crypto.createHash('sha1').update(key + GUID).digest('base64');
   sock.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
   sock.setNoDelay(true);
-  join(sock, roomName, room);
+  perIP.set(ip, (perIP.get(ip) || 0) + 1);
+  join(sock, roomName, room, ip);
 });
 
 // ---------------- rooms and players ----------------
 const rooms = new Map(); // room name -> Map(id -> client)
 const clients = new Set();
 let nextId = 1;
-function join(sock, roomName, room) {
-  const c = { id: 'p' + (nextId++).toString(36), sock, roomName, room, pres: {}, buf: Buffer.alloc(0), alive: true, tokens: 30, last: Date.now(), chat: [] };
+function join(sock, roomName, room, ip) {
+  const c = { id: 'p' + (nextId++).toString(36), sock, roomName, room, ip, pres: {}, buf: Buffer.alloc(0), alive: true, tokens: 30, last: Date.now(), chat: [] };
   room.set(c.id, c); rooms.set(roomName, room); clients.add(c);
   send(c, { t: 'welcome', id: c.id, room: roomName, peers: [...room.values()].filter((o) => o !== c).map((o) => ({ peer: o.id, presence: o.pres })) });
   sock.on('data', (d) => onData(c, d));
@@ -78,6 +85,7 @@ function join(sock, roomName, room) {
 }
 function leave(c) {
   if (!clients.has(c)) return; clients.delete(c); c.room.delete(c.id);
+  const n = (perIP.get(c.ip) || 1) - 1; if (n > 0) perIP.set(c.ip, n); else perIP.delete(c.ip);
   if (!c.room.size) rooms.delete(c.roomName); else broadcast(c, { t: 'leave', peer: c.id });
   try { c.sock.destroy(); } catch { /* already closed */ }
 }

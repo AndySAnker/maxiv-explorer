@@ -6,7 +6,17 @@
   "type": "module",
   "scripts": {
     "start": "node server/server.mjs",
-    "build": "./build.sh"
+    "dev": "python3 -m http.server 8000",
+    "build": "./build.sh",
+    "regenerate-data": "./tools/regenerate_data.sh"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AndySAnker/maxiv-explorer.git"
+  },
+  "homepage": "https://andysanker.github.io/maxiv-explorer/"
 }

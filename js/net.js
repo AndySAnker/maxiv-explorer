@@ -57,7 +57,10 @@ export async function initNet(name) {
 function relayURL() {
   const qs = new URLSearchParams(location.search); const room = (qs.get('room') || 'lobby').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32) || 'lobby';
   let base = document.querySelector('meta[name="maxiv-relay"]')?.content?.trim() || '';
-  if (!base) { if (!/^https?:$/.test(location.protocol)) return null; base = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'; }
+  if (!base) { // same-origin relay – except on file:// and static hosts such as GitHub Pages, which have none
+    if (!/^https?:$/.test(location.protocol) || /\.github\.io$/.test(location.hostname)) return null;
+    base = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+  }
   if (!/^wss?:\/\//.test(base)) return null;
   NET.roomName = room; return base + (base.includes('?') ? '&' : '?') + 'room=' + encodeURIComponent(room);
 }
@@ -150,7 +153,7 @@ export function netTick(dt) {
 // chat: T opens the input, Enter sends, Esc cancels
 export function openChat() {
   const inp = document.getElementById('chatin'); if (!inp) return;
-  if (!NET.room) { G.ui.toast('Chat works when the game is opened from the shared link'); return; }
+  if (!NET.room) { G.ui.toast('Chat and other players need the multiplayer server – see “Play together” in the README on GitHub.', 6); return; }
   inp.style.display = 'block'; inp.value = ''; document.exitPointerLock?.(); setTimeout(() => inp.focus(), 0);
 }
 export function initChatInput() {

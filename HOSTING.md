@@ -1,11 +1,19 @@
-# Hosting MAX IV Explorer with multiplayer
+# Hosting MAX IV Explorer
+
+**Single-player, no server:** the game is one static page, `index.html` + `game.bundle.js`. It is published with
+GitHub Pages at **https://andysanker.github.io/maxiv-explorer/** (Settings → Pages → *Deploy from a branch*: `main`, `/`).
+Any static web host works the same way, and so does opening `index.html` from disk.
+
+**Multiplayer** needs the small server below.
 
 `server/server.mjs` is a small Node.js server with **no dependencies**. It serves the game and a WebSocket relay, so
 players who open the same address meet each other, see names and avatars, and chat (press **T**).
 
 * Rooms: everyone with the same `?room=` in the address meets, e.g. `https://your-server/?room=kemi2026`.
   Without it, everyone is in `lobby`.
-* Limits: 40 players per room, 400 in total (change with `MAX_PER_ROOM`, `MAX_TOTAL`).
+* Limits: 40 players per room, 400 in total, 8 connections per IP address (change with `MAX_PER_ROOM`, `MAX_TOTAL`,
+  `MAX_PER_IP`). Behind a reverse proxy (Render, Fly, nginx) set `TRUST_PROXY=1` so the per-IP limit sees the real
+  client address.
 * Safety: names ≤ 20 characters and chat ≤ 200 characters with hidden characters removed and a short list of
   obscenities masked; chat is limited to about one line per second; positions are clamped; only `index.html` and
   `game.bundle.js` are served.
@@ -24,7 +32,8 @@ Open `http://localhost:8080`. Others on the same network open `http://<your-comp
 ## 2 · Render (free tier, public HTTPS address)
 
 1. On render.com: **New → Web Service → connect the GitHub repo** `maxiv-explorer`.
-2. Runtime **Node**, build command *(empty)*, start command `node server/server.mjs`.
+2. Runtime **Node**, build command *(empty)*, start command `node server/server.mjs`, environment variable
+   `TRUST_PROXY=1`.
 3. Deploy. The game is at `https://<name>.onrender.com`; share `https://<name>.onrender.com/?room=yourclass`.
 
 The free tier sleeps after ~15 minutes without visitors; the first visit then takes ~30–60 s to wake it.
