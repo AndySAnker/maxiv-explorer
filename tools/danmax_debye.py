@@ -4,7 +4,8 @@ For every sample: I(Q) with self-scattering, the self-scattering curve (to norma
 averaged over a few crystallite sizes, and the reference G(r) from DebyeCalculator.
 For the r-space analysis: F(Q) of candidate structures (the game Fourier-transforms them with your Qmax).
 
-    PYTHONPATH=<DebyeCalculator checkout> python3 tools/danmax_debye.py
+    pip install "debyecalculator>=1.1.1"   (or ./tools/regenerate_data.sh for all data)
+    python3 tools/danmax_debye.py
 """
 import json, pathlib, sys, time
 import numpy as np
@@ -12,7 +13,7 @@ from ase import Atoms
 from ase.build import bulk
 from ase.spacegroup import crystal
 from ase.cluster import Icosahedron, Decahedron
-import debyecalculator
+from importlib.metadata import version
 from debyecalculator import DebyeCalculator
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -75,7 +76,7 @@ def main():
     rng = np.random.default_rng(3)
     calc = DebyeCalculator(qmin=0.3, qmax=25.0, qstep=0.01, rmin=0.0, rmax=30.0, rstep=0.02, biso=0.4, qdamp=0.02,
                            device='cpu', radiation_type='xray', pair_sum='grid')
-    out = {'meta': {'debyecalculator': getattr(debyecalculator, '__version__', '1.1.1'), 'pair_sum': 'grid'}, 'samples': []}
+    out = {'meta': {'debyecalculator': version('debyecalculator'), 'pair_sum': 'grid'}, 'samples': []}
     for s in SAMPLES:
         sizes = np.array(s['sizes']); w = np.exp(-0.5 * ((sizes - sizes.mean()) / (sizes.std() + 1e-9)) ** 2) if len(sizes) > 1 else np.ones(1)
         w /= w.sum(); I = SS = G = None; natoms = []; t0 = time.time()

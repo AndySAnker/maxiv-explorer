@@ -2,7 +2,8 @@
 // One engine, one state per beamline. In the hutch you mount a sample or a calibrant and search the hutch; in the
 // control cabin you measure (with a live hutch camera), calibrate and save the geometry, reduce 2D → 1D (mask +
 // PONI geometry) and analyse. Detector images are simulated from patterns calculated with DebyeCalculator (grid pair
-// sum, PR #44): tools/cosaxs_debye.py and tools/danmax_debye.py.
+// sum, PR #44; Johansen, Anker et al., J. Open Source Softw. 2024, 9(94), 6024, doi:10.21105/joss.06024):
+// tools/cosaxs_debye.py and tools/danmax_debye.py.
 import * as THREE from 'three';
 import { G } from './state.js';
 import { earn, charge, canPay, fmt, PRICE, BEAMTIME_HOUR } from './economy.js';
@@ -12,6 +13,7 @@ import { addBox, addCircle } from './physics.js';
 import { COSAXS } from './cosaxs_data.js';
 import { DANMAX } from './danmax_data.js';
 import { plotXY } from './plot.js';
+import { buildRobot, openRobotTab } from './scatterlab.js';
 
 // ---------------- beamline configurations ----------------
 const cubicPeaks = (a, lattice, qmax = 18) => {
@@ -139,6 +141,7 @@ export function buildExperimentHardware(key, bl, opt) {
   if (key === 'cosaxs') buildCoSAXSHw(st, bl, opt); else buildDanMAXHw(st, bl, opt);
   buildTables(st, bl, opt);
   buildSearch(st, bl, opt);
+  buildRobot(key, bl, opt, () => { openExperiment(key); showTab('S'); }); // autonomous synthesis robot (ScatterLab, Anker et al., ACS Nano 2026)
   setDet(st.L);
 }
 function buildCoSAXSHw(st, bl, { d, ds, beamY, ry }) {
@@ -248,15 +251,65 @@ function buildSearch(st, bl, { d, ry }) {
     act: () => { srch.stage = 2; lit(); G.sfx?.('beep'); G.ui.toast('Leave the hutch and press <b>LOCK</b> outside the door', 5); } });
   G.interact.push({ x: p3.x, z: p3.z, r: 1.0, label: () => (srch.stage === 2 ? 'LOCK hutch (search done)' : bl.searched ? 'Open hutch (cancels search)' : 'Hutch not searched – start at button 1 inside'),
     act: () => {
-      if (srch.stage === 2 && !inside()) { srch.stage = 0; bl.searched = true; bl.locked = true; lit(); setLamp(); G.sfx?.('success'); G.ui.toast('🔒 Hutch searched and locked – you can measure', 4); STATES[st.cfg.key] === CX && uiAlive() && refresh(); }
+      if (srch.stage === 2 && !inside()) { srch.stage = 0; bl.searched = true; bl.locked = true; st.guideOn = false; lit(); setLamp(); G.sfx?.('success'); G.ui.toast('🔒 Hutch searched and locked – you can measure', 4); STATES[st.cfg.key] === CX && uiAlive() && refresh(); }
       else if (bl.searched) { bl.searched = false; bl.locked = false; lit(); setLamp(); G.sfx?.('door'); G.ui.toast('Hutch open – search needed again before measuring', 4); }
       else G.ui.toast('Start the search at <b>button 1</b> at the far end inside the hutch', 4);
     } });
+  const guide = searchGuide(st, bl, srch, inside, { p1, p2, p3, mid: P((d.e0 + d.e1) / 2, 0) });
   G.tickers.push((dt) => {
     if (srch.stage > 0) { srch.t -= dt; srch.beep -= dt; if (srch.beep <= 0) { G.sfx?.('beep'); srch.beep = 1; } if (srch.t <= 0) { srch.stage = 0; lit(); G.ui.toast('Search timed out – start again at button 1', 4); } }
     if (bl.searched && inside()) { bl.searched = false; bl.locked = false; lit(); }
+    guide(dt);
   });
   bl.onShutter = () => { if (!bl.shutter) setLamp(); };
+}
+// Step-by-step guide through the search once something is mounted: an arrow over the next button (seen through
+// walls), an arrow on the floor in front of the player that leads there (via the hutch door), a HUD panel with the
+// step and the countdown, and a blip on the maps.
+function searchGuide(st, bl, srch, inside, { p1, p2, p3, mid }) {
+  const key = st.cfg.key;
+  const yel = (o = {}) => new THREE.MeshBasicMaterial(Object.assign({ color: '#ffcc33', toneMapped: false, transparent: true, depthTest: false, depthWrite: false }, o));
+  const cone = new THREE.ConeGeometry(0.2, 0.5, 4); cone.rotateX(Math.PI);
+  const over = new THREE.Mesh(cone, yel()); over.renderOrder = 20;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.45, 32).rotateX(-Math.PI / 2), yel({ opacity: 0.8, side: THREE.DoubleSide })); ring.renderOrder = 19;
+  const sh = new THREE.Shape([[0, 0.55], [0.34, 0.12], [0.12, 0.12], [0.12, -0.45], [-0.12, -0.45], [-0.12, 0.12], [-0.34, 0.12]].map(([x, y]) => new THREE.Vector2(x, y)));
+  const floor = new THREE.Mesh(new THREE.ShapeGeometry(sh).rotateX(-Math.PI / 2), yel({ opacity: 0.85, side: THREE.DoubleSide })); floor.renderOrder = 19;
+  for (const m of [over, ring, floor]) { m.visible = false; m.frustumCulled = false; G.scene.add(m); }
+  let hud = document.getElementById('searchGuide');
+  if (!hud) {
+    hud = document.createElement('div'); hud.id = 'searchGuide';
+    hud.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);background:var(--panel);padding:9px 16px;border-radius:10px;max-width:540px;text-align:center;display:none;border:1px solid rgba(255,204,51,.6)';
+    (document.getElementById('hud') || document.body).appendChild(hud);
+  }
+  G.guideBlips ||= {};
+  const near = (a, r) => Math.hypot(G.player.pos.x - a.x, G.player.pos.z - a.z) < r;
+  return () => {
+    const show = st.guideOn && !bl.searched && !G.player.vehicle && (srch.stage > 0 || near(mid, 45));
+    if (!show) {
+      over.visible = ring.visible = floor.visible = false; delete G.guideBlips[key];
+      if (hud.dataset.owner === key) { hud.style.display = 'none'; hud.dataset.owner = ''; }
+      return;
+    }
+    const ins = inside(); const s = srch.stage;
+    const target = s === 0 ? p1 : s === 1 ? p2 : p3;
+    // route through the door when the target is on the other side of the hutch wall
+    const needIn = s < 2 && !ins, needOut = s === 2 && ins;
+    const wp = needIn ? (near(bl.expDoorOut, 1.3) ? bl.expDoorIn : bl.expDoorOut) : needOut ? (near(bl.expDoorIn, 1.3) ? bl.expDoorOut : bl.expDoorIn) : target;
+    const t = G.time, pp = G.player.pos;
+    over.position.set(target.x, 2.25 + Math.sin(t * 4) * 0.15, target.z); over.rotation.y = t * 2; over.visible = true;
+    ring.position.set(target.x, 0.06, target.z); const sc = 1 + 0.25 * Math.sin(t * 5); ring.scale.set(sc, 1, sc); ring.visible = true;
+    const dx = wp.x - pp.x, dz = wp.z - pp.z, dist = Math.hypot(dx, dz);
+    floor.visible = dist > 1.0;
+    if (floor.visible) { const ux = dx / dist, uz = dz / dist, a = 1.3 + 0.15 * Math.sin(t * 6); floor.position.set(pp.x + ux * a, pp.y + 0.07, pp.z + uz * a); floor.rotation.y = Math.atan2(-ux, -uz); }
+    G.guideBlips[key] = { x: target.x, z: target.z, color: '#ffcc33', label: 'Hutch search', r: 4 };
+    const left = s > 0 ? ` <b style="color:${srch.t < 10 ? '#ff5050' : '#ffcc33'}">${Math.max(0, Math.ceil(srch.t))} s</b>` : '';
+    const text = s === 0 ? (ins ? 'Walk to the <b>far end</b> of the hutch and press <b>button 1</b> (E)' : 'Go into the hutch – follow the yellow arrow to <b>button 1</b> at the far end')
+      : s === 1 ? (ins ? 'Check that nobody is left inside, then press <b>button 2</b> by the door (E)' : 'Go back in and press <b>button 2</b> by the door')
+        : (ins ? 'Leave the hutch – nobody may stay inside' : 'Press <b>LOCK</b> outside the door (E)');
+    hud.dataset.owner = key; hud.style.display = 'block';
+    hud.style.top = document.getElementById('mission')?.style.display === 'block' ? '118px' : '14px';
+    hud.innerHTML = `<div style="color:var(--acc);font-weight:bold;font-size:14px;letter-spacing:1px">HUTCH SEARCH ${s + 1}/3${left}</div><div style="font-size:16px;margin-top:3px">${text}</div>`;
+  };
 }
 // small pick-one menu (click or press 1, 2, 3 …)
 function choose(title, opts) {
@@ -273,12 +326,12 @@ function choose(title, opts) {
   el.classList.add('show'); document.exitPointerLock?.(); window.addEventListener('keydown', kh, true);
 }
 function mount(id) {
-  CX.sample = id; const s = id ? byId(id) : null;
+  CX.sample = id; CX.guideOn = true; const s = id ? byId(id) : null; // guideOn: show the search guide until the hutch is searched
   CX.vial.visible = !!s || !!C.empty; if (s) CX.vial.material = mat(s.color, { roughness: 0.3 }); else if (C.empty) CX.vial.material = mat('#dff1fb', { roughness: 0.1 });
   const on = id ?? (C.empty ? '_empty' : null);
   for (const [vid, v] of Object.entries(CX.rackVials)) v.visible = vid !== on;
   G.sfx?.('pickup');
-  G.ui.toast(`${s ? `<b>${s.formula}</b> mounted` : C.empty ? '<b>Empty capillary</b> mounted' : 'Holder empty'} – now search: button 1 → button 2 → LOCK outside`, 5);
+  G.ui.toast(`${s ? `<b>${s.formula}</b> mounted` : C.empty ? '<b>Empty capillary</b> mounted' : 'Holder empty'} – now search the hutch: follow the <b style="color:#ffcc33">yellow arrows</b>`, 5);
 }
 function setDet(L) { const p = CX.bl.P(CX.ds + L, 0); CX.det.position.set(p.x, CX.beamY + CX.oy / 1000, p.z); } // raised detector = beam near its bottom edge
 
@@ -338,7 +391,7 @@ export function initCoSAXSUI() {
   const ov = document.createElement('div'); ov.id = 'cosaxsov'; ov.className = 'overlay';
   ov.innerHTML = `<div class="card cx"><button class="close">✕ close (Esc)</button>
     <h2 id="cxTitle" style="color:#c9a8ff">CoSAXS</h2>
-    <div class="cxtabs"><button data-t="M" class="on">1 Measure</button><button data-t="C">2 Calibrate</button><button data-t="R">3 Reduce</button><button data-t="P" id="cxTabPBtn">4 PDF</button><button data-t="A" id="cxTabABtn">4 Analyse</button></div>
+    <div class="cxtabs"><button data-t="M" class="on">1 Measure</button><button data-t="C">2 Calibrate</button><button data-t="R">3 Reduce</button><button data-t="P" id="cxTabPBtn">4 PDF</button><button data-t="A" id="cxTabABtn">4 Analyse</button><button data-t="S" id="cxTabSBtn">🤖 Autonomous synthesis</button></div>
     <div class="cxpanel on" id="cxTabM"><div class="cxgrid">
       <div>
         <div class="cxrow"><label>Sample</label><div id="cxSample"></div></div>
@@ -398,7 +451,8 @@ export function initCoSAXSUI() {
     </div></div>
     <div class="cxpanel" id="cxTabP"></div>
     <div class="cxpanel" id="cxTabA"></div>
-    <p class="dim" style="font-size:11px;margin:8px 0 0">Model: <a href="https://github.com/FrederikLizakJohansen/DebyeCalculator" target="_blank" rel="noopener">DebyeCalculator</a> · more in Help (H)</p>
+    <div class="cxpanel" id="cxTabS"></div>
+    <p class="dim" style="font-size:11px;margin:8px 0 0">Model: <a href="https://github.com/FrederikLizakJohansen/DebyeCalculator" target="_blank" rel="noopener">DebyeCalculator</a> (Johansen, Anker <i>et al.</i>, <a href="https://doi.org/10.21105/joss.06024" target="_blank" rel="noopener">J. Open Source Softw. 2024, 9, 6024</a>) · more in Help (H)</p>
   </div>`;
   document.body.appendChild(ov);
   ov.querySelectorAll('.cxtabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.t)));
@@ -426,11 +480,12 @@ export function initCoSAXSUI() {
 }
 function showTab(t) {
   document.querySelectorAll('#cosaxsov .cxtabs button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
-  for (const k of ['M', 'C', 'R', 'P', 'A']) $('cxTab' + k).classList.toggle('on', k === t);
+  for (const k of ['M', 'C', 'R', 'P', 'A', 'S']) $('cxTab' + k).classList.toggle('on', k === t);
   if (t === 'C') refreshCal();
   if (t === 'R') { refreshReduce(); drawReduceDet(); drawReducePlot(); }
   if (t === 'A') analyseHooks?.open($('cxTabA'));
   if (t === 'P') analyseHooks?.pdf($('cxTabP'));
+  if (t === 'S') openRobotTab($('cxTabS'), C.key, { ready: () => !!CX.bl?.searched && (G.ring.beamOn || CX.bl?.ring === 'L') });
 }
 // open the control screen for one beamline
 export function openExperiment(key) {

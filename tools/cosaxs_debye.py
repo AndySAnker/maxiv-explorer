@@ -11,7 +11,7 @@ import json, pathlib, time
 import numpy as np
 from ase.build import bulk
 from ase import Atoms
-import debyecalculator
+from importlib.metadata import version
 from debyecalculator import DebyeCalculator
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -93,7 +93,7 @@ SAMPLES = [
 
 def main():
     calc = DebyeCalculator(qmin=QMIN, qmax=QMAX, qstep=QSTEP, biso=0.5, device='cpu', radiation_type='xray', pair_sum='grid')
-    out = {'q': None, 'samples': [], 'meta': {'debyecalculator': getattr(debyecalculator, '__version__', '1.1.1'), 'pair_sum': 'grid', 'qstep': QSTEP}}
+    out = {'q': None, 'samples': [], 'meta': {'debyecalculator': version('debyecalculator'), 'pair_sum': 'grid', 'qstep': QSTEP}}
     for s in SAMPLES:
         sizes = np.array(s['sizes'])
         w = np.exp(-0.5 * ((sizes - sizes.mean()) / (0.45 * sizes.std() * 2)) ** 2)
