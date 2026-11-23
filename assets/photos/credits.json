@@ -1,10 +1,84 @@
 [
  {
+  "file": "aerial_2014.jpg",
+  "title": "Max IV–flygbild 06 september 2014.jpg",
+  "artist": "This image was produced by me, David Castor (user:dcastor). The pictures I submi",
+  "license": "CC0",
+  "page": "https://commons.wikimedia.org/wiki/File:Max_IV%E2%80%93flygbild_06_september_2014.jpg"
+ },
+ {
+  "id": "817eb975-9d68-445f-8524-3851f7b8ea9d",
+  "title": "Max IV–flygbild 06 september 2014-2",
+  "creator": "This image was produced by me, David Castor (user:dcastor). The pictures I submit to the Wikipedia Project are released to the public domain. This gives you the right to use them in any way you like, without any kind of notification. This said, I would still appreciate to be mentioned as the originator whenever you think it complies well with your use of the picture. A message to me about how it has been used would also be welcome. You are obviously not required to respond to these wishes of mine, just in a friendly manner encouraged to. (All my photos are placed in Category:Images by David Castor or a subcategory thereof.)",
+  "license": "cc0",
+  "lv": "1.0",
+  "src": "https://commons.wikimedia.org/w/index.php?curid=37567445",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/4/4d/Max_IV%E2%80%93flygbild_06_september_2014-2.jpg",
+  "w": 3888,
+  "h": 2592,
+  "prov": "wikimedia",
+  "file": "aerial_2014b.jpg"
+ },
+ {
+  "file": "aerial_2016.jpg",
+  "title": "Max IV-laboratoriet den 20 juni 2016.jpg",
+  "artist": "Toirelb",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Max_IV-laboratoriet_den_20_juni_2016.jpg"
+ },
+ {
   "file": "aerial_ring_2020.jpg",
   "title": "20200517 Max IV i Lund 002 (49913522522).jpg",
   "artist": "Johan Wessman / News Oresund",
   "license": "CC BY 2.0",
   "page": "https://commons.wikimedia.org/wiki/File:20200517_Max_IV_i_Lund_002_(49913522522).jpg"
+ },
+ {
+  "id": "7d9834a5-b697-4c6f-afc7-dbda30adbd68",
+  "title": "Color version of Max IV Beamline",
+  "creator": "evenkolder",
+  "license": "by",
+  "lv": "2.0",
+  "src": "https://www.flickr.com/photos/20035421@N00/34404247014",
+  "url": "https://live.staticflickr.com/4271/34404247014_2eb9355725_b.jpg",
+  "w": 1024,
+  "h": 904,
+  "prov": "flickr",
+  "file": "beamline_evenkolder.jpg"
+ },
+ {
+  "file": "biomax_kb_mirror.jpg",
+  "title": "BioMAX-KBmirror-tank.jpg",
+  "artist": "XanaG",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:BioMAX-KBmirror-tank.jpg"
+ },
+ {
+  "file": "biomax_robot.jpg",
+  "title": "BioMAX-IRELEC-robot.jpg",
+  "artist": "XanaG",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:BioMAX-IRELEC-robot.jpg"
+ },
+ {
+  "id": "8c3e0d27-7677-4bde-9d08-edd9c17101ac",
+  "title": "20170914_Brunnshog_Lund_N8B0933",
+  "creator": "News Oresund",
+  "license": "by",
+  "lv": "2.0",
+  "src": "https://www.flickr.com/photos/88883738@N02/37093341311",
+  "url": "https://live.staticflickr.com/4336/37093341311_6d54d9747e_b.jpg",
+  "w": 1024,
+  "h": 679,
+  "prov": "flickr",
+  "file": "brunnshog_2017.jpg"
+ },
+ {
+  "file": "building_2016.jpg",
+  "title": "Max IV 20160620 0154 (27530711930).jpg",
+  "artist": "Johan Wessman / News Oresund",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Max_IV_20160620_0154_(27530711930).jpg"
  },
  {
   "file": "building_2020b.jpg",
@@ -21,48 +95,6 @@
   "page": "https://commons.wikimedia.org/wiki/File:20221105_Max_IV_Lund005_(52479744284).jpg"
  },
  {
-  "file": "hall_2023.jpg",
-  "title": "20230503 MAX IV Lund 102 (52875848945).jpg",
-  "artist": "Johan Wessman / News Oresund",
-  "license": "CC BY 2.0",
-  "page": "https://commons.wikimedia.org/wiki/File:20230503_MAX_IV_Lund_102_(52875848945).jpg"
- },
- {
-  "file": "nanomax.jpg",
-  "title": "20230503 MAX IV NanoMax Lund 082 (52875635224).jpg",
-  "artist": "Johan Wessman / News Oresund",
-  "license": "CC BY 2.0",
-  "page": "https://commons.wikimedia.org/wiki/File:20230503_MAX_IV_NanoMax_Lund_082_(52875635224).jpg"
- },
- {
-  "file": "biomax_robot.jpg",
-  "title": "BioMAX-IRELEC-robot.jpg",
-  "artist": "XanaG",
-  "license": "CC BY-SA 4.0",
-  "page": "https://commons.wikimedia.org/wiki/File:BioMAX-IRELEC-robot.jpg"
- },
- {
-  "file": "biomax_kb_mirror.jpg",
-  "title": "BioMAX-KBmirror-tank.jpg",
-  "artist": "XanaG",
-  "license": "CC BY-SA 4.0",
-  "page": "https://commons.wikimedia.org/wiki/File:BioMAX-KBmirror-tank.jpg"
- },
- {
-  "file": "linac.jpg",
-  "title": "Linacklar.jpg",
-  "artist": "Synkrotron Lund",
-  "license": "CC BY-SA 3.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Linacklar.jpg"
- },
- {
-  "file": "r1_ring_inside.jpg",
-  "title": "MAXIV-R1-MBA-cells.jpg",
-  "artist": "XanaG",
-  "license": "CC BY-SA 4.0",
-  "page": "https://commons.wikimedia.org/wiki/File:MAXIV-R1-MBA-cells.jpg"
- },
- {
   "file": "construction_2013.jpg",
   "title": "MAX IV 2013-11-23.jpg",
   "artist": "Joakim Fors",
@@ -70,25 +102,17 @@
   "page": "https://commons.wikimedia.org/wiki/File:MAX_IV_2013-11-23.jpg"
  },
  {
-  "file": "layout_ipac2016.jpg",
-  "title": "MAX IV accelerator layout - Figure 1 from Eriksson et al, Proceedings IPAC 2016.jpg",
-  "artist": "M. Eriksson, E. Al-Dmour, \u00c5. Andersson, M.A.G. Johansson, S.C. Leemann, L. Malmg",
-  "license": "CC BY 3.0",
-  "page": "https://commons.wikimedia.org/wiki/File:MAX_IV_accelerator_layout_-_Figure_1_from_Eriksson_et_al,_Proceedings_IPAC_2016.jpg"
- },
- {
-  "file": "aerial_2016.jpg",
-  "title": "Max IV-laboratoriet den 20 juni 2016.jpg",
-  "artist": "Toirelb",
-  "license": "CC BY-SA 4.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Max_IV-laboratoriet_den_20_juni_2016.jpg"
- },
- {
-  "file": "building_2016.jpg",
-  "title": "Max IV 20160620 0154 (27530711930).jpg",
-  "artist": "Johan Wessman / News Oresund",
-  "license": "CC BY 2.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Max_IV_20160620_0154_(27530711930).jpg"
+  "id": "dcd96e87-6a01-4499-9027-3fe836b0c6d9",
+  "title": "Max IV outside Lund 20131003_002",
+  "creator": "News Oresund",
+  "license": "by",
+  "lv": "2.0",
+  "src": "https://www.flickr.com/photos/88883738@N02/10090172084",
+  "url": "https://live.staticflickr.com/3712/10090172084_dd64eb1df6_b.jpg",
+  "w": 1024,
+  "h": 641,
+  "prov": "flickr",
+  "file": "construction_2013b.jpg"
  },
  {
   "file": "construction_2015a.jpg",
@@ -105,11 +129,64 @@
   "page": "https://commons.wikimedia.org/wiki/File:Max_IV_laboratoriet_Lund_2015apr14_0098_(17130699086).jpg"
  },
  {
-  "file": "magnet_danfysik.jpg",
-  "title": "Max IV magnet 150206 DSF1919 (26356475391).jpg",
-  "artist": "News Oresund",
+  "file": "hall_2023.jpg",
+  "title": "20230503 MAX IV Lund 102 (52875848945).jpg",
+  "artist": "Johan Wessman / News Oresund",
   "license": "CC BY 2.0",
-  "page": "https://commons.wikimedia.org/wiki/File:Max_IV_magnet_150206_DSF1919_(26356475391).jpg"
+  "page": "https://commons.wikimedia.org/wiki/File:20230503_MAX_IV_Lund_102_(52875848945).jpg"
+ },
+ {
+  "id": "bc3f17d5-684f-4d7e-8170-8d994e8b4dd9",
+  "title": "Max IV",
+  "creator": "Infomastern",
+  "license": "by-sa",
+  "lv": "2.0",
+  "src": "https://www.flickr.com/photos/55856449@N04/29554443004",
+  "url": "https://live.staticflickr.com/5164/29554443004_c148ab0ea9_b.jpg",
+  "w": 1024,
+  "h": 683,
+  "prov": "flickr",
+  "file": "infomastern_1.jpg"
+ },
+ {
+  "id": "de4b794a-4a64-4aba-bd2a-14151930cb73",
+  "title": "Max IV",
+  "creator": "Infomastern",
+  "license": "by-sa",
+  "lv": "2.0",
+  "src": "https://www.flickr.com/photos/55856449@N04/28597271804",
+  "url": "https://live.staticflickr.com/8171/28597271804_dfdc3ef38d_b.jpg",
+  "w": 1024,
+  "h": 683,
+  "prov": "flickr",
+  "file": "infomastern_2.jpg"
+ },
+ {
+  "id": "ea5b57d3-6180-452b-a8e0-16f19024e531",
+  "title": "Max IV",
+  "creator": "Infomastern",
+  "license": "by-sa",
+  "lv": "2.0",
+  "src": "https://www.flickr.com/photos/55856449@N04/30427175035",
+  "url": "https://live.staticflickr.com/8551/30427175035_01951659f1_b.jpg",
+  "w": 1024,
+  "h": 683,
+  "prov": "flickr",
+  "file": "infomastern_3.jpg"
+ },
+ {
+  "file": "layout_ipac2016.jpg",
+  "title": "MAX IV accelerator layout - Figure 1 from Eriksson et al, Proceedings IPAC 2016.jpg",
+  "artist": "M. Eriksson, E. Al-Dmour, Å. Andersson, M.A.G. Johansson, S.C. Leemann, L. Malmg",
+  "license": "CC BY 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:MAX_IV_accelerator_layout_-_Figure_1_from_Eriksson_et_al,_Proceedings_IPAC_2016.jpg"
+ },
+ {
+  "file": "linac.jpg",
+  "title": "Linacklar.jpg",
+  "artist": "Synkrotron Lund",
+  "license": "CC BY-SA 3.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Linacklar.jpg"
  },
  {
   "file": "magnet_block.jpg",
@@ -119,10 +196,37 @@
   "page": "https://commons.wikimedia.org/wiki/File:Max_IV_magnet_20150406_02_(16455367761).jpg"
  },
  {
-  "file": "aerial_2014.jpg",
-  "title": "Max IV\u2013flygbild 06 september 2014.jpg",
-  "artist": "This image was produced by me, David Castor (user:dcastor). The pictures I submi",
-  "license": "CC0",
-  "page": "https://commons.wikimedia.org/wiki/File:Max_IV%E2%80%93flygbild_06_september_2014.jpg"
+  "file": "magnet_danfysik.jpg",
+  "title": "Max IV magnet 150206 DSF1919 (26356475391).jpg",
+  "artist": "News Oresund",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:Max_IV_magnet_150206_DSF1919_(26356475391).jpg"
+ },
+ {
+  "file": "nanomax.jpg",
+  "title": "20230503 MAX IV NanoMax Lund 082 (52875635224).jpg",
+  "artist": "Johan Wessman / News Oresund",
+  "license": "CC BY 2.0",
+  "page": "https://commons.wikimedia.org/wiki/File:20230503_MAX_IV_NanoMax_Lund_082_(52875635224).jpg"
+ },
+ {
+  "id": "a1879dd1-d772-483f-9064-10dacf888d5d",
+  "title": "Quadrupole at Max IV in Lund, Sweden",
+  "creator": "evenkolder",
+  "license": "by",
+  "lv": "2.0",
+  "src": "https://www.flickr.com/photos/20035421@N00/35248134085",
+  "url": "https://live.staticflickr.com/4253/35248134085_d7c3af4598_b.jpg",
+  "w": 1024,
+  "h": 576,
+  "prov": "flickr",
+  "file": "quadrupole_evenkolder.jpg"
+ },
+ {
+  "file": "r1_ring_inside.jpg",
+  "title": "MAXIV-R1-MBA-cells.jpg",
+  "artist": "XanaG",
+  "license": "CC BY-SA 4.0",
+  "page": "https://commons.wikimedia.org/wiki/File:MAXIV-R1-MBA-cells.jpg"
  }
 ]
