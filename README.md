@@ -77,14 +77,14 @@ a mission or a sample, and how the scattering data are generated.
 
 ## Credits and licence
 
-* Code: [MIT licence](LICENSE) © 2026 Andy Sode Anker.
+* Code: [MIT licence](LICENSE) © 2026 Andy Sode Anker. Third-party material below keeps its own licence.
 * 3D engine: [three.js](https://threejs.org) r160 (MIT), vendored in `vendor/`.
 * Scattering patterns: [DebyeCalculator](https://github.com/FrederikLizakJohansen/DebyeCalculator) (Apache 2.0) –
   F. L. Johansen, A. S. Anker, U. Friis-Jensen, E. B. Dam, K. M. Ø. Jensen, R. Selvan, *J. Open Source Softw.* 2024,
   9(94), 6024, [doi:10.21105/joss.06024](https://doi.org/10.21105/joss.06024).
 * Autonomous synthesis: A. S. Anker *et al.*, “Autonomous Synthesis of Nanoparticles with Target Scattering
   Patterns”, *ACS Nano* 2026, 20, 6767–6782, [doi:10.1021/acsnano.5c15488](https://doi.org/10.1021/acsnano.5c15488).
-* Photos: Wikimedia Commons under Creative Commons licences – authors and licences in
+* Photos: Wikimedia Commons and Flickr under Creative Commons licences – authors and licences in
   [assets/photos/credits.json](assets/photos/credits.json) and in the in-game help (**H**).
 * X-ray form factors: International Tables for Crystallography Vol. C; detector data: DECTRIS data sheets and the
   MAX IV website. Example SAXS data in the analysis tab: *Angew. Chem. Int. Ed.* 2021, e202103641

@@ -106,7 +106,7 @@ export const BEAMLINES1 = [
   { name: 'SPECIES', a: 90, color: '#7a52c7', tech: 'Ambient-pressure XPS & RIXS', desc: 'Soft X-ray spectroscopy of surfaces in gases and of electronic excitations.' },
 ];
 
-// ---------------- Photos (Wikimedia Commons) ----------------
+// ---------------- Photos (Wikimedia Commons and Flickr, Creative Commons licences) ----------------
 export const PHOTOS = {
   'aerial_ring_2020.jpg': { cap: 'The MAX IV entrance and the 3 GeV ring building (2020)', by: 'Johan Wessman / News Øresund', lic: 'CC BY 2.0', url: 'https://commons.wikimedia.org/wiki/File:20200517_Max_IV_i_Lund_002_(49913522522).jpg' },
   'building_2020b.jpg': { cap: 'Office block and the curved ring hall', by: 'Johan Wessman / News Øresund', lic: 'CC BY 2.0', url: 'https://commons.wikimedia.org/wiki/File:20200517_Max_IV_i_Lund_006_(49913223326).jpg' },

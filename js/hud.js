@@ -35,17 +35,21 @@ export function initHUD() {
     $('pimg').style.display = file ? 'block' : 'none'; if (file) $('pimg').src = 'assets/photos/' + file;
     let html = '';
     if (info) html += `<h2 style="color:${info.color || '#fff'}">${info.name}</h2><h3>${info.tech || ''}</h3><p>${info.desc || ''}</p>`;
-    if (p) html += `<p class="cap">${p.cap}</p><p class="cred">Photo: ${p.by} · <a href="${p.url}" target="_blank" rel="noopener">${p.lic} – Wikimedia Commons</a></p>`;
+    if (p) html += `<p class="cap">${p.cap}</p><p class="cred">Photo: ${p.by} · <a href="${p.url}" target="_blank" rel="noopener">${photoSource(p)}</a> · ${licLink(p.lic)}</p>`;
     $('ptext').innerHTML = html; box.classList.add('show'); document.exitPointerLock?.();
   };
   ui.closeOverlays = () => { document.querySelectorAll('.overlay').forEach((o) => o.classList.remove('show')); };
   ui.toggle = (id) => { const o = $(id); const on = !o.classList.contains('show'); ui.closeOverlays(); if (on) { o.classList.add('show'); document.exitPointerLock?.(); if (id === 'mapov') drawBigMap(); } };
   document.querySelectorAll('.overlay').forEach((o) => o.addEventListener('click', (e) => { if (e.target === o || e.target.classList.contains('close')) o.classList.remove('show'); }));
   // credits list
-  const LIC = { 'CC BY 2.0': 'https://creativecommons.org/licenses/by/2.0/', 'CC BY 3.0': 'https://creativecommons.org/licenses/by/3.0/', 'CC BY-SA 3.0': 'https://creativecommons.org/licenses/by-sa/3.0/', 'CC BY-SA 4.0': 'https://creativecommons.org/licenses/by-sa/4.0/', CC0: 'https://creativecommons.org/publicdomain/zero/1.0/' };
-  $('credits').innerHTML = Object.entries(PHOTOS).map(([f, p]) => `<li>${p.cap} — ${p.by}, <a href="${p.url}" target="_blank" rel="noopener">Wikimedia Commons</a>, ${LIC[p.lic] ? `<a href="${LIC[p.lic]}" target="_blank" rel="noopener">${p.lic}</a>` : p.lic} (resized)</li>`).join('');
+  $('credits').innerHTML = Object.values(PHOTOS).map((p) => `<li>${p.cap} — ${p.by}, <a href="${p.url}" target="_blank" rel="noopener">${photoSource(p)}</a>, ${licLink(p.lic)} (resized)</li>`).join('');
   buildMapImage();
 }
+
+// photo attribution: where the photo is from, and its licence with a link to the licence text
+const photoSource = (p) => (/flickr\.com/.test(p.url) ? 'Flickr' : 'Wikimedia Commons');
+const LIC = { 'CC BY 2.0': 'https://creativecommons.org/licenses/by/2.0/', 'CC BY-SA 2.0': 'https://creativecommons.org/licenses/by-sa/2.0/', 'CC BY 3.0': 'https://creativecommons.org/licenses/by/3.0/', 'CC BY-SA 3.0': 'https://creativecommons.org/licenses/by-sa/3.0/', 'CC BY-SA 4.0': 'https://creativecommons.org/licenses/by-sa/4.0/', CC0: 'https://creativecommons.org/publicdomain/zero/1.0/' };
+const licLink = (l) => (LIC[l] ? `<a href="${LIC[l]}" target="_blank" rel="noopener">${l}</a>` : l);
 
 // ---------------- HUD per-frame ----------------
 let accT = 0;
